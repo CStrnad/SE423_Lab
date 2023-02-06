@@ -1,3 +1,4 @@
+//Chris Hahn and Chris Strnad are commenting this code. Our initials are CH and CJS.
 //#############################################################################
 // FILE:   LABstarter_main.c
 //
@@ -340,8 +341,8 @@ __interrupt void cpu_timer1_isr(void)
 __interrupt void cpu_timer2_isr(void)
 {
 
-    writeLEDs = ReadSwitches();
-    SetLEDsOnOff(writeLEDs);
+    writeLEDs = ReadSwitches(); //CJS This function returns a int16_t which contains the state of each of the 4 PBs.
+    SetLEDsOnOff(writeLEDs); //CJS This function is called to set the 4 LED's on or off, based on the input from the writeLEDs variable.
 
     numTimer2calls++; //CH Incremen.
     UARTPrint = 1;
