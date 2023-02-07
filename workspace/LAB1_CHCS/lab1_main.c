@@ -1,7 +1,8 @@
+//This code is being commented by Chris Strnad and Chris Hahn. See intials CJS and CH.
 //#############################################################################
-// FILE:   LABstarter_main.c
+// FILE:   lab1_main.c
 //
-// TITLE:  Lab Starter
+// TITLE:  Lab 1 Code File for SE423 - Mechatronics
 //#############################################################################
 
 // Included Files
@@ -201,7 +202,7 @@ void main(void)
 
     init_serialSCIA(&SerialA,115200);
     init_serialSCIB(&SerialB,19200);
-//    init_serialSCIC(&SerialC,115200);
+//    init_serialSCIC(&SerialC,115200); //CJS These last two serial comms are not being used yet. Commented out by default.
 //    init_serialSCID(&SerialD,115200);
 
     // Enable CPU int1 which is connected to CPU-Timer 0, CPU int13
@@ -228,7 +229,7 @@ void main(void)
     while(1)
     {
         if (UARTPrint == 1 ) {
-			serial_printf(&SerialA,"Num Timer2:%ld Num SerialRX: %ld\r\n",CpuTimer2.InterruptCount,numRXA);
+			serial_printf(&SerialA,"Num Timer2:%ld Num SerialRX: %ld\r\n",CpuTimer2.InterruptCount,numRXA); //CJS Print the Interrupt count and number of keystrokes to serial console.
             UART_printfLine(1,"Timer2 Calls %ld",CpuTimer2.InterruptCount);
             UART_printfLine(2,"Num SerialRX %ld",numRXA);
             UARTPrint = 0;
@@ -293,7 +294,7 @@ __interrupt void cpu_timer2_isr(void)
 
     CpuTimer2.InterruptCount++;
 	
-	if ((CpuTimer2.InterruptCount % 10) == 0) {
+	if ((CpuTimer2.InterruptCount % 10) == 0) { //CJS Run the UARTPrint functino every ten CPU2timer cycles.
 		UARTPrint = 1;
 	}
 }
