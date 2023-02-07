@@ -43,7 +43,7 @@ int32_t numTimer2calls = 0;
 //Global functions
 void SetLEDsOnOff(int16_t LEDvalue) //CJS - Takes the passed in number and sets LEDs 1-5 on or off.
 {
-    if((LEDvalue & 0x1) == 0x1)
+    if((LEDvalue & 0x1) == 0x1) //CJS Comments have already been placed in the latest version of this file for Exercise 3. But this function will set each LED to on or off based on the masked condition checking of an inputted 16-bit variable. 
         GpioDataRegs.GPASET.bit.GPIO22 = 1;
     else
         GpioDataRegs.GPACLEAR.bit.GPIO22 = 1;
@@ -69,7 +69,7 @@ void SetLEDsOnOff(int16_t LEDvalue) //CJS - Takes the passed in number and sets 
         GpioDataRegs.GPDCLEAR.bit.GPIO111 = 1;
 }
 
-int16_t ReadSwitches(void)
+int16_t ReadSwitches(void) //CJS Comments have already been made regarding this for the exercise 3 code, but this function checks each of the 4 push buttons and returns a locally created varialble which has been updated by bit position based on whether or not the button was active during that time.
 {
     int16_t buttonState = 0;
     if (GpioDataRegs.GPEDAT.bit.GPIO157 == 0){
@@ -279,7 +279,7 @@ void main(void)
     while(1)
     {
         if (UARTPrint == 1 ) {
-//			serial_printf(&SerialA,"Num Timer2:%ld Num SerialRX: %ld\r\n",CpuTimer2.InterruptCount,numRXA);
+//			serial_printf(&SerialA,"Num Timer2:%ld Num SerialRX: %ld\r\n",CpuTimer2.InterruptCount,numRXA); //CJS Commented this out so that we can test our print statement below.
 			serial_printf(&SerialA,"Num Timer2calls:%ld numRXA:%ld writeLEDs:%d \r\n",numTimer2calls,numRXA, writeLEDs); //CH Q3 Print numTimer2calls and numRXA to serial port
             UART_printfLine(1,"Timer2 Calls %ld",CpuTimer2.InterruptCount);
             UART_printfLine(2,"Num SerialRX %ld",numRXA);
