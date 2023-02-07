@@ -1,8 +1,8 @@
 //Chris Hahn and Chris Strnad are commenting this code. Our initials are CH and CJS.
 //#############################################################################
-// FILE:   LABstarter_main.c
+// FILE:   LAB_2_CHCS_Ex3_main.c
 //
-// TITLE:  Lab Starter
+// TITLE:  Lab 2 Exercise 3 Code for SE423
 //#############################################################################
 
 // Included Files
