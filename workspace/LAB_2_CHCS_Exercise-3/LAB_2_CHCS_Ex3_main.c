@@ -95,10 +95,16 @@ void main(void)
 
     InitGpio();
 	
-	// Blue LED on LaunchPad
+
+    // Blue LED on LaunchPad
     GPIO_SetupPinMux(31, GPIO_MUX_CPU1, 0);
     GPIO_SetupPinOptions(31, GPIO_OUTPUT, GPIO_PUSHPULL);
     GpioDataRegs.GPASET.bit.GPIO31 = 1;
+
+    // CH GPIO 61 for oscilloscope debugging
+    GPIO_SetupPinMux(61, GPIO_MUX_CPU1, 0);
+    GPIO_SetupPinOptions(61, GPIO_OUTPUT, GPIO_PUSHPULL);
+    GpioDataRegs.GPBSET.bit.GPIO61 = 1;
 
 	// Red LED on LaunchPad
     GPIO_SetupPinMux(34, GPIO_MUX_CPU1, 0);
@@ -344,8 +350,9 @@ __interrupt void cpu_timer2_isr(void)
 	
     if ((CpuTimer2.InterruptCount % 100) == 0) {
         UARTPrint = 1;
+        GpioDataRegs.GPBSET.bit.GPIO61 = 1;
         SetLEDsOnOff(timer2InterruptCounter);
-
+        GpioDataRegs.GPBCLEAR.bit.GPIO61 = 1;
         if ((ReadSwitches() & 0x6) != 0x6){
             timer2InterruptCounter++;
         }
