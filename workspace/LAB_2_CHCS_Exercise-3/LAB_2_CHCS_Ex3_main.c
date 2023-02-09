@@ -1,7 +1,8 @@
+//Chris Hahn and Chris Strnad are commenting this code. Our initials are CH and CJS.
 //#############################################################################
-// FILE:   LABstarter_main.c
+// FILE:   LAB_2_CHCS_Ex3_main.c
 //
-// TITLE:  Lab Starter
+// TITLE:  Lab 2 Exercise 3 Code for SE423
 //#############################################################################
 
 // Included Files
@@ -43,12 +44,12 @@ int32_t timer2InterruptCounter = 0;
 //Global functions
 void SetLEDsOnOff(int16_t LEDvalue) //CJS - Takes the passed in number and sets LEDs 1-5 on or off.
 {
-    if((LEDvalue & 0x1) == 0x1)
+    if((LEDvalue & 0x1) == 0x1) //CJS If the Value at the 1st (rightmost) position is on, turn on that designed LED.
         GpioDataRegs.GPASET.bit.GPIO22 = 1;
     else
-        GpioDataRegs.GPACLEAR.bit.GPIO22 = 1;
+        GpioDataRegs.GPACLEAR.bit.GPIO22 = 1; //CJS Or turn it off.
 
-    if((LEDvalue & 0x2) == 0x2)
+    if((LEDvalue & 0x2) == 0x2) //Carry out for the other 4 LEDs. CJS
         GpioDataRegs.GPCSET.bit.GPIO94 = 1;
     else
         GpioDataRegs.GPCCLEAR.bit.GPIO94 = 1;
@@ -69,10 +70,10 @@ void SetLEDsOnOff(int16_t LEDvalue) //CJS - Takes the passed in number and sets 
         GpioDataRegs.GPDCLEAR.bit.GPIO111 = 1;
 }
 
-int16_t ReadSwitches(void)
+int16_t ReadSwitches(void) //CJS This function checks the four pushbuttons for actuation.
 {
-    int16_t buttonState = 0;
-    if (GpioDataRegs.GPEDAT.bit.GPIO157 == 0){
+    int16_t buttonState = 0; //Creating a local 16bit reg. This will reset to 0 each time the function is called. Nice!
+    if (GpioDataRegs.GPEDAT.bit.GPIO157 == 0){ //CJS For each button, if it is pressed, use an OR to set that position of the var to on.
         buttonState = buttonState | 0x1;
     }
     if (GpioDataRegs.GPEDAT.bit.GPIO158 == 0){
@@ -84,7 +85,7 @@ int16_t ReadSwitches(void)
     if (GpioDataRegs.GPFDAT.bit.GPIO160 == 0){
         buttonState = buttonState | 0x8;
     }
-    return buttonState;
+    return buttonState; //CJS return this local variable.
 }
 
 void main(void)
@@ -249,13 +250,13 @@ void main(void)
     ConfigCpuTimer(&CpuTimer2, LAUNCHPAD_CPU_FREQUENCY, 1000);
 
     // Enable CpuTimer Interrupt bit TIE
-//    CpuTimer0Regs.TCR.all = 0x4000;
+//    CpuTimer0Regs.TCR.all = 0x4000; //CJS Timer 0 and 1 commented out, as they are not needed for this portion of the lab.
 //    CpuTimer1Regs.TCR.all = 0x4000;
     CpuTimer2Regs.TCR.all = 0x4000;
 
     init_serialSCIA(&SerialA,115200);
     init_serialSCIB(&SerialB,19200);
-//    init_serialSCIC(&SerialC,115200);
+//    init_serialSCIC(&SerialC,115200); //CJS Also killed these processes. We have yet to use all 4 serials.
 //    init_serialSCID(&SerialD,115200);
 
     // Enable CPU int1 which is connected to CPU-Timer 0, CPU int13
@@ -350,10 +351,16 @@ __interrupt void cpu_timer2_isr(void)
 	
     if ((CpuTimer2.InterruptCount % 100) == 0) {
         UARTPrint = 1;
+<<<<<<< HEAD
         GpioDataRegs.GPBSET.bit.GPIO61 = 1;
         SetLEDsOnOff(timer2InterruptCounter);
         GpioDataRegs.GPBCLEAR.bit.GPIO61 = 1;
         if ((ReadSwitches() & 0x6) != 0x6){
+=======
+        SetLEDsOnOff(timer2InterruptCounter); //CJS toggling LED's based on every hundredth of a tick by CPU2.
+
+        if ((ReadSwitches() & 0x6) != 0x6){ //CJS Checking if the 0x6th memory position is not being pressed.
+>>>>>>> b64390980d1fcd21ce872d9ad52dccb537544171
             timer2InterruptCounter++;
         }
         // Blink LaunchPad Blue LED
