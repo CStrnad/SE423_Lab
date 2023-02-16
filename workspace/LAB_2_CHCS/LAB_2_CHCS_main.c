@@ -71,8 +71,8 @@ void SetLEDsOnOff(int16_t LEDvalue) //CJS - Takes the passed in number and sets 
 
 int16_t ReadSwitches(void) //CJS Comments have already been made regarding this for the exercise 3 code, but this function checks each of the 4 push buttons and returns a locally created varialble which has been updated by bit position based on whether or not the button was active during that time.
 {
-    int16_t buttonState = 0;
-    if (GpioDataRegs.GPEDAT.bit.GPIO157 == 0){
+    int16_t buttonState = 0;	//CJS Create local variable which contains the state of the 4 pushbuttons
+    if (GpioDataRegs.GPEDAT.bit.GPIO157 == 0){	//CJS Each nested if statement gets the state of each pushbutton and sets it as part of the button state to be read by the LEDsOnOff function.
         buttonState = buttonState | 0x1;
     }
     if (GpioDataRegs.GPEDAT.bit.GPIO158 == 0){
