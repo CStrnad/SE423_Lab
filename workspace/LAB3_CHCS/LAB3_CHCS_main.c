@@ -56,6 +56,11 @@ float v_left = 0;
 float v_right = 0;
 float Lwheeldistold = 0;
 float Rwheeldistold = 0;
+//CJS Position and Friction Coeff constants
+float vPos = 2.247;
+float vNeg = 2.263;
+float cPos = 2.117;
+float cNeg = -2.153;
 
 
 //CH predefinitions
@@ -463,7 +468,7 @@ __interrupt void cpu_timer1_isr(void)
 {
     LeftWheel = readEncLeft();
     RightWheel = readEncRight();
-    encWheel = readEncWheel();
+    encWheel = readEncWheel()/5;
 
     Lwheeldist = LeftWheel / radpft;
     Rwheeldist = RightWheel / radpft;
@@ -471,8 +476,10 @@ __interrupt void cpu_timer1_isr(void)
     v_left = (Lwheeldist - Lwheeldistold)/0.001;
     v_right = (Rwheeldist - Rwheeldistold)/0.001;
 
-    uLeft = encWheel;
-    uRight = encWheel;
+//    uLeft = encWheel;
+//    uRight = encWheel;
+    uLeft  = 0;
+    uRight = 0; //CJS set disp to 0 for friction test.
 
     if (uLeft >= 10){
         uLeft = 10;
@@ -486,6 +493,13 @@ __interrupt void cpu_timer1_isr(void)
     if (uRight <= -10){
         uRight = -10;
     }
+
+    //CJS Friction compensation for Left and Right motors.
+    if (v_left > 0.0) uLeft = uLeft + vPos * v_left + cPos;
+    else uLeft = uLeft + vNeg * v_left + cNeg;
+
+    if (v_right > 0.0) uRight = uRight + vPos * v_right + cPos;
+    else uRight = uRight + vNeg * v_right + cNeg;
 
     setEPWM1A(uLeft);
     setEPWM2A(-uRight);
