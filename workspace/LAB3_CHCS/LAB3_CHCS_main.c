@@ -57,10 +57,10 @@ float v_right = 0;
 float Lwheeldistold = 0;
 float Rwheeldistold = 0;
 //CJS Position and Friction Coeff constants
-float vPos = 2.247;
-float vNeg = 2.263;
+float vPos = 2.447;
+float vNeg = 2.463;
 float cPos = 2.117;
-float cNeg = -2.153;
+float cNeg = -2.127;
 
 
 //CH predefinitions
