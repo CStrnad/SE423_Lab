@@ -39,8 +39,7 @@ uint32_t numTimer0calls = 0;
 uint32_t numSWIcalls = 0;
 extern uint32_t numRXA;
 uint16_t UARTPrint = 0;
-//CH updown count var
-//CH Lab 3 global vars
+//CH Lab 3 global variables
 uint16_t updown = 0;
 float motorControl = 7;
 uint16_t motorUpdown = 0;
@@ -77,11 +76,14 @@ void  setEPWM1A(float controleffort){
         controleffort = -10;
     }
 
+    //CH adding 10 to the input gets rid of negative values, and then dividing by 20 gets us the desired duty cycle
+    //CH which we can then assign to CMPA
     float fracValue = 10 + controleffort;
     float dutyCycle = fracValue/20.0;
     EPwm1Regs.CMPA.bit.CMPA = EPwm12Regs.TBPRD * dutyCycle;
 }
 
+//CJS same thing as above, written differently
 void setEPWM2A (float controlEffort) {
     if (controlEffort > 10) controlEffort = 10;
     if (controlEffort < -10) controlEffort = -10;
@@ -247,7 +249,7 @@ void main(void)
     // 200MHz CPU Freq,                       Period (in uSeconds)
     ConfigCpuTimer(&CpuTimer0, LAUNCHPAD_CPU_FREQUENCY, 10000);
     ConfigCpuTimer(&CpuTimer1, LAUNCHPAD_CPU_FREQUENCY, 1000);
-    ConfigCpuTimer(&CpuTimer2, LAUNCHPAD_CPU_FREQUENCY, 1000); //CH was 40000
+    ConfigCpuTimer(&CpuTimer2, LAUNCHPAD_CPU_FREQUENCY, 1000); //CH change timer2 to call every 1ms
 
     // Enable CpuTimer Interrupt bit TIE
     CpuTimer0Regs.TCR.all = 0x4000;
@@ -260,15 +262,15 @@ void main(void)
 //    init_serialSCID(&SerialD,115200);
 
     //CH EPwm12Regs Setup
-    EPwm12Regs.TBCTL.bit.CTRMODE = 0;
-    EPwm12Regs.TBCTL.bit.FREE_SOFT = 2;
-    EPwm12Regs.TBCTL.bit.CLKDIV = 0;
-    EPwm12Regs.TBCTR = 0;
-    EPwm12Regs.TBPRD = 2500;
-    EPwm12Regs.CMPA.bit.CMPA = 0;
-    EPwm12Regs.AQCTLA.bit.CAU = 1;
-    EPwm12Regs.AQCTLA.bit.ZRO = 2;
-    EPwm12Regs.TBPHS.bit.TBPHS = 0;
+    EPwm12Regs.TBCTL.bit.CTRMODE = 0; //CH count up mode
+    EPwm12Regs.TBCTL.bit.FREE_SOFT = 2; //CH free run
+    EPwm12Regs.TBCTL.bit.CLKDIV = 0; //CH clock divide = 1
+    EPwm12Regs.TBCTR = 0; //CH timer starts at 0
+    EPwm12Regs.TBPRD = 2500; // CH period of 2500
+    EPwm12Regs.CMPA.bit.CMPA = 0; // CH duty cycle initialized at 0%
+    EPwm12Regs.AQCTLA.bit.CAU = 1; // CH PWM is cleared when CMPA reaches TBPRD
+    EPwm12Regs.AQCTLA.bit.ZRO = 2; // CH pin is set when TBCTR is 0
+    EPwm12Regs.TBPHS.bit.TBPHS = 0; // CH phase to 0
 
     //CJS EPwm1A Setup
     EPwm1Regs.TBCTL.bit.CTRMODE = 0;
@@ -329,16 +331,17 @@ void main(void)
 			//serial_printf(&SerialA,"Num Timer2:%ld Num SerialRX: %ld\r\n",CpuTimer2.InterruptCount,numRXA);
 //          UART_printfLine(1,"Timer2 Calls %ld",CpuTimer2.InterruptCount);
 //          UART_printfLine(2,"Num SerialRX %ld",numRXA);
-//          UART_printfLine(1,"L: %.2f R: %.2f", LeftWheel, RightWheel);
-//            UART_printfLine(2,"Wheel Encoder: %.3f", encWheel);
-//            UART_printfLine(1,"Ldist: %.2f Rdist: %.2f", Lwheeldist, Rwheeldist);
-            UART_printfLine(2,"Wheel Enc: %.3f", encWheel);
-            UART_printfLine(1,"vl: %.2f vr %.2f", v_left,v_right);
+//          UART_printfLine(1,"L: %.2f R: %.2f", LeftWheel, RightWheel); // CH print motor raw value
+//          UART_printfLine(2,"Wheel Encoder: %.3f", encWheel); // CH print encoder raw value
+//          UART_printfLine(1,"Ldist: %.2f Rdist: %.2f", Lwheeldist, Rwheeldist); // CH print wheel distance traveled
+            UART_printfLine(2,"Wheel Enc: %.3f", encWheel); // CH print adjusted wheel encoder input value
+            UART_printfLine(1,"vl: %.2f vr %.2f", v_left,v_right); //CH print left and right wheel velocity in ft/s
             UARTPrint = 0;
         }
     }
 }
 
+//CH provided code to read raw values of encoder and wheels
 void init_eQEPs(void) {
     // setup eQEP1 pins for input
     EALLOW;
@@ -405,14 +408,14 @@ float readEncLeft(void) {
     uint32_t QEP_maxvalue = 0xFFFFFFFFU; //4294967295U
     raw = EQep1Regs.QPOSCNT;
     if (raw >= QEP_maxvalue/2) raw -= QEP_maxvalue; // I don't think this is needed and never true
-    return (raw*(-2*PI/40000));
+    return (raw*(-2*PI/40000));// CH number of recordings per turn
 }
 float readEncRight(void) {
     int32_t raw = 0;
     uint32_t QEP_maxvalue = 0xFFFFFFFFU; //4294967295U -1 32bit signed int
     raw = EQep2Regs.QPOSCNT;
     if (raw >= QEP_maxvalue/2) raw -= QEP_maxvalue; // I don't think this is needed and never true
-    return (raw*(2*PI/40000));
+    return (raw*(2*PI/40000)); // CH number of recordings per turn
 }
 float readEncWheel(void) {
     int32_t raw = 0;
@@ -466,13 +469,16 @@ __interrupt void cpu_timer0_isr(void)
 // cpu_timer1_isr - CPU Timer1 ISR
 __interrupt void cpu_timer1_isr(void)
 {
+    //CH getting raw values for wheels and encoder
     LeftWheel = readEncLeft();
     RightWheel = readEncRight();
     encWheel = readEncWheel()/5;
 
+    //CH converting raw values to distance values via radpft conversion factor
     Lwheeldist = LeftWheel / radpft;
     Rwheeldist = RightWheel / radpft;
 
+    //CH calculating velocity of wheels by taking delta x over delta t
     v_left = (Lwheeldist - Lwheeldistold)/0.001;
     v_right = (Rwheeldist - Rwheeldistold)/0.001;
 
@@ -481,6 +487,7 @@ __interrupt void cpu_timer1_isr(void)
     uLeft  = 0;
     uRight = 0; //CJS set disp to 0 for friction test.
 
+    // CH set bounds for uLeft and uRight
     if (uLeft >= 10){
         uLeft = 10;
     }
@@ -501,9 +508,11 @@ __interrupt void cpu_timer1_isr(void)
     if (v_right > 0.0) uRight = uRight + vPos * v_right + cPos;
     else uRight = uRight + vNeg * v_right + cNeg;
 
+    // CH calling the functions to enable wheel function
     setEPWM1A(uLeft);
     setEPWM2A(-uRight);
 
+    //CH setting old values as current values before loop exits
     Lwheeldistold = Lwheeldist;
     Rwheeldistold = Rwheeldist;
 		
@@ -527,6 +536,9 @@ __interrupt void cpu_timer2_isr(void)
         EPwm12Regs.CMPA.bit.CMPA--;
     }
 
+
+    //CH this code makes the motors oscillate back and forth
+    //CH starts by checking direction variable, then decrements EPWM input until 0, then increments and repeats
     if (motorControl >= 10){
         motorUpdown = 1;
     }
