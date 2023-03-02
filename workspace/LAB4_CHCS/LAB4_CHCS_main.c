@@ -33,8 +33,10 @@ __interrupt void cpu_timer0_isr(void);
 __interrupt void cpu_timer1_isr(void);
 __interrupt void cpu_timer2_isr(void);
 __interrupt void SWI_isr(void);
-//CH ADCD Interrupt predefinition
-__interrupt void ADCD_ISR(void);
+
+__interrupt void ADCD_ISR(void);    //CH ADCD Interrupt predefinition
+__interrupt void ADCC_ISR(void);    //CJS ADCC Interrupt predef.
+__interrupt void ADCB_ISR(void);    //CH ADCB Interrupt predef.
 
 // Count variables
 uint32_t numTimer0calls = 0;
@@ -48,6 +50,13 @@ uint16_t adcd1result = 0;
 float ADCIND0_scaled = 0.0;
 //CH ADCD_ISR function call count var
 uint32_t ADCD_ISR_count = 0;
+uint32_t ADCC_ISR_count = 0;
+
+//CJS Degrees per second global vars.
+float X4degSec = 0;
+float Z4DegSec = 0;
+float XDegSec = 0;
+float ZDegSec = 0;
 //xk is the current ADC reading, xk_1 is the ADC reading one millisecond ago, xk_2 two milliseconds ago, etc
 //float xk = 0;
 //float xk_1 = 0;
@@ -69,6 +78,17 @@ float b[22]={   -2.3890045153263611e-03,    -3.3150057635348224e-03,    -4.61361
                 -4.6136191242627002e-03,    -3.3150057635348224e-03,    -2.3890045153263611e-03};
 
 float xk[FILTSIZE] = {0};
+
+//CJS Global variables for 2000th sum of data points. ADCC
+float sum4Z = 0;
+float sumZ = 0;
+float sum4X = 0;
+float sumX = 0;
+//CJS Global variables for 2000th average of sums.
+float zero4Z = 0;
+float zeroZ = 0;
+float zero4X = 0;
+float zeroX = 0;
 
 //This function sets DACA to the voltage between 0V and 3V passed to this function.
 //If outside 0V to 3V the output is saturated at 0V to 3V
@@ -228,6 +248,8 @@ void main(void)
     PieVectTable.SCIC_TX_INT = &TXCINT_data_sent;
     PieVectTable.SCID_TX_INT = &TXDINT_data_sent;
     PieVectTable.ADCD1_INT = &ADCD_ISR;
+    PieVectTable.ADCC1_INT = &ADCC_ISR;
+    PieVectTable.ADCB1_INT = &ADCB_ISR;
 
     PieVectTable.EMIF_ERROR_INT = &SWI_isr;
     EDIS;    // This is needed to disable write to EALLOW protected registers
@@ -288,42 +310,42 @@ void main(void)
     DELAY_US(1000);
     //Select the channels to convert and end of conversion flag
     //Many statements commented out, To be used when using ADCA or ADCB
-    //ADCA
-    //AdcaRegs.ADCSOC0CTL.bit.CHSEL = ???; //SOC0 will convert Channel you choose Does not have to be A0
-    //AdcaRegs.ADCSOC0CTL.bit.ACQPS = 99; //sample window is acqps + 1 SYSCLK cycles = 500ns
-    //AdcaRegs.ADCSOC0CTL.bit.TRIGSEL = ???;// EPWM4 ADCSOCA or another trigger you choose will trigger SOC0
-    //AdcaRegs.ADCSOC1CTL.bit.CHSEL = ???; //SOC1 will convert Channel you choose Does not have to be A1
-    //AdcaRegs.ADCSOC1CTL.bit.ACQPS = 99; //sample window is acqps + 1 SYSCLK cycles = 500ns
-    //AdcaRegs.ADCSOC1CTL.bit.TRIGSEL = ???;// EPWM4 ADCSOCA or another trigger you choose will trigger SOC1
-    //AdcaRegs.ADCINTSEL1N2.bit.INT1SEL = ???; //set to last SOC that is converted and it will set INT1 flag ADCA1
-    //AdcaRegs.ADCINTSEL1N2.bit.INT1E = 1; //enable INT1 flag
-    //AdcaRegs.ADCINTFLGCLR.bit.ADCINT1 = 1; //make sure INT1 flag is cleared
+//    ADCA
+//    AdcaRegs.ADCSOC0CTL.bit.CHSEL = ???; //SOC0 will convert Channel you choose Does not have to be A0
+//    AdcaRegs.ADCSOC0CTL.bit.ACQPS = 99; //sample window is acqps + 1 SYSCLK cycles = 500ns
+//    AdcaRegs.ADCSOC0CTL.bit.TRIGSEL = ???;// EPWM4 ADCSOCA or another trigger you choose will trigger SOC0
+//    AdcaRegs.ADCSOC1CTL.bit.CHSEL = ???; //SOC1 will convert Channel you choose Does not have to be A1
+//    AdcaRegs.ADCSOC1CTL.bit.ACQPS = 99; //sample window is acqps + 1 SYSCLK cycles = 500ns
+//    AdcaRegs.ADCSOC1CTL.bit.TRIGSEL = ???;// EPWM4 ADCSOCA or another trigger you choose will trigger SOC1
+//    AdcaRegs.ADCINTSEL1N2.bit.INT1SEL = ???; //set to last SOC that is converted and it will set INT1 flag ADCA1
+//    AdcaRegs.ADCINTSEL1N2.bit.INT1E = 1; //enable INT1 flag
+//    AdcaRegs.ADCINTFLGCLR.bit.ADCINT1 = 1; //make sure INT1 flag is cleared
     //ADCB Microphone is connected to ADCINB4
-    //AdcbRegs.ADCSOC0CTL.bit.CHSEL = ???; //SOC0 will convert Channel you choose Does not have to be B0
-    //AdcbRegs.ADCSOC0CTL.bit.ACQPS = 99; //sample window is acqps + 1 SYSCLK cycles = 500ns
-    //AdcbRegs.ADCSOC0CTL.bit.TRIGSEL = ???;// EPWM7 ADCSOCA or another trigger you choose will trigger SOC0
-    //AdcbRegs.ADCSOC1CTL.bit.CHSEL = ???; //SOC1 will convert Channel you choose Does not have to be B1
-    //AdcbRegs.ADCSOC1CTL.bit.ACQPS = 99; //sample window is acqps + 1 SYSCLK cycles = 500ns
-    //AdcbRegs.ADCSOC1CTL.bit.TRIGSEL = ???;// EPWM7 ADCSOCA or another trigger you choose will trigger SOC1
-    //AdcbRegs.ADCINTSEL1N2.bit.INT1SEL = ???; //set to last SOC that is converted and it will set INT1 flag ADCB1
-    //AdcbRegs.ADCINTSEL1N2.bit.INT1E = 1; //enable INT1 flag
-    //AdcbRegs.ADCINTFLGCLR.bit.ADCINT1 = 1; //make sure INT1 flag is cleared
+    AdcbRegs.ADCSOC0CTL.bit.CHSEL = 4; //SOC0 will convert Channel you choose Does not have to be B0
+    AdcbRegs.ADCSOC0CTL.bit.ACQPS = 99; //sample window is acqps + 1 SYSCLK cycles = 500ns
+    AdcbRegs.ADCSOC0CTL.bit.TRIGSEL = 0x11;// EPWM7 ADCSOCA or another trigger you choose will trigger SOC0
+//    AdcbRegs.ADCSOC1CTL.bit.CHSEL = ???; //SOC1 will convert Channel you choose Does not have to be B1
+//    AdcbRegs.ADCSOC1CTL.bit.ACQPS = 99; //sample window is acqps + 1 SYSCLK cycles = 500ns
+//    AdcbRegs.ADCSOC1CTL.bit.TRIGSEL = ???;// EPWM7 ADCSOCA or another trigger you choose will trigger SOC1
+    AdcbRegs.ADCINTSEL1N2.bit.INT1SEL = 0; //set to last SOC that is converted and it will set INT1 flag ADCB1
+    AdcbRegs.ADCINTSEL1N2.bit.INT1E = 1; //enable INT1 flag
+    AdcbRegs.ADCINTFLGCLR.bit.ADCINT1 = 1; //make sure INT1 flag is cleared
     //ADCC
-    //AdccRegs.ADCSOC0CTL.bit.CHSEL = ???; //SOC0 will convert Channel you choose Does not have to be B0
-    //AdccRegs.ADCSOC0CTL.bit.ACQPS = 99; //sample window is acqps + 1 SYSCLK cycles = 500ns
-    //AdccRegs.ADCSOC0CTL.bit.TRIGSEL = ???; // EPWM4 ADCSOCA or another trigger you choose will trigger SOC0
-    //AdccRegs.ADCSOC1CTL.bit.CHSEL = ???; //SOC1 will convert Channel you choose Does not have to be B1
-    //AdccRegs.ADCSOC1CTL.bit.ACQPS = 99; //sample window is acqps + 1 SYSCLK cycles = 500ns
-    //AdccRegs.ADCSOC1CTL.bit.TRIGSEL = ???; // EPWM4 ADCSOCA or another trigger you choose will trigger SOC1
-    //AdccRegs.ADCSOC2CTL.bit.CHSEL = ???; //SOC2 will convert Channel you choose Does not have to be B2
-    //AdccRegs.ADCSOC2CTL.bit.ACQPS = 99; //sample window is acqps + 1 SYSCLK cycles = 500ns
-    //AdccRegs.ADCSOC2CTL.bit.TRIGSEL = ???; // EPWM4 ADCSOCA or another trigger you choose will trigger SOC2
-    //AdccRegs.ADCSOC3CTL.bit.CHSEL = ???; //SOC3 will convert Channel you choose Does not have to be B3
-    //AdccRegs.ADCSOC3CTL.bit.ACQPS = 99; //sample window is acqps + 1 SYSCLK cycles = 500ns
-    //AdccRegs.ADCSOC3CTL.bit.TRIGSEL = ???; // EPWM4 ADCSOCA or another trigger you choose will trigger SOC3
-    //AdccRegs.ADCINTSEL1N2.bit.INT1SEL = ???; //set to last SOC that is converted and it will set INT1 flag ADCB1
-    //AdccRegs.ADCINTSEL1N2.bit.INT1E = 1; //enable INT1 flag
-    //AdccRegs.ADCINTFLGCLR.bit.ADCINT1 = 1; //make sure INT1 flag is cleared
+    AdccRegs.ADCSOC0CTL.bit.CHSEL = 2; //SOC0 will convert Channel you choose Does not have to be B0
+    AdccRegs.ADCSOC0CTL.bit.ACQPS = 99; //sample window is acqps + 1 SYSCLK cycles = 500ns
+    AdccRegs.ADCSOC0CTL.bit.TRIGSEL = 0x0B; // EPWM4 ADCSOCA or another trigger you choose will trigger SOC0
+    AdccRegs.ADCSOC1CTL.bit.CHSEL = 3; //SOC1 will convert Channel you choose Does not have to be B1
+    AdccRegs.ADCSOC1CTL.bit.ACQPS = 99; //sample window is acqps + 1 SYSCLK cycles = 500ns
+    AdccRegs.ADCSOC1CTL.bit.TRIGSEL = 0x0B; // EPWM4 ADCSOCA or another trigger you choose will trigger SOC1
+    AdccRegs.ADCSOC2CTL.bit.CHSEL = 4; //SOC2 will convert Channel you choose Does not have to be B2
+    AdccRegs.ADCSOC2CTL.bit.ACQPS = 99; //sample window is acqps + 1 SYSCLK cycles = 500ns
+    AdccRegs.ADCSOC2CTL.bit.TRIGSEL = 0x0B; // EPWM4 ADCSOCA or another trigger you choose will trigger SOC2
+    AdccRegs.ADCSOC3CTL.bit.CHSEL = 5; //SOC3 will convert Channel you choose Does not have to be B3
+    AdccRegs.ADCSOC3CTL.bit.ACQPS = 99; //sample window is acqps + 1 SYSCLK cycles = 500ns
+    AdccRegs.ADCSOC3CTL.bit.TRIGSEL = 0x0B; // EPWM4 ADCSOCA or another trigger you choose will trigger SOC3
+    AdccRegs.ADCINTSEL1N2.bit.INT1SEL = 3; //set to last SOC that is converted and it will set INT1 flag ADCB1
+    AdccRegs.ADCINTSEL1N2.bit.INT1E = 1; //enable INT1 flag
+    AdccRegs.ADCINTFLGCLR.bit.ADCINT1 = 1; //make sure INT1 flag is cleared
     //ADCD
     AdcdRegs.ADCSOC0CTL.bit.CHSEL = 0; // set SOC0 to convert pin D0
     AdcdRegs.ADCSOC0CTL.bit.ACQPS = 99; //sample window is acqps + 1 SYSCLK cycles = 500ns
@@ -342,7 +364,7 @@ void main(void)
     AdcdRegs.ADCINTFLGCLR.bit.ADCINT1 = 1; //make sure INT1 flag is cleared
     EDIS;
 
-    // CH EPWM Initializations
+    // CH EPWM4 Initializations
     EALLOW;
     EPwm4Regs.ETSEL.bit.SOCAEN = 0; // Disable SOC on A group
     EPwm4Regs.TBCTL.bit.CTRMODE = 3; // freeze counter
@@ -356,6 +378,22 @@ void main(void)
     // Notice here that we are not setting CMPA or CMPB because we are not using the PWM signal
     EPwm4Regs.ETSEL.bit.SOCAEN = 1; //enable SOCA
     EPwm4Regs.TBCTL.bit.CTRMODE = 0; //unfreeze, and enter up count mode
+    EDIS;
+
+    //CH EPWM7 Initializations
+    EALLOW;
+    EPwm7Regs.ETSEL.bit.SOCAEN = 0; // Disable SOC on A group
+    EPwm7Regs.TBCTL.bit.CTRMODE = 3; // freeze counter
+    EPwm7Regs.ETSEL.bit.SOCASEL = 2; // Select Event when counter equal to PRD
+    EPwm7Regs.ETPS.bit.SOCAPRD = 1; // Generate pulse on 1st event (“pulse” is the same as “trigger”)
+    EPwm7Regs.TBCTR = 0x0; // Clear counter
+    EPwm7Regs.TBPHS.bit.TBPHS = 0x0000; // Phase is 0
+    EPwm7Regs.TBCTL.bit.PHSEN = 0; // Disable phase loading
+    EPwm7Regs.TBCTL.bit.CLKDIV = 0; // divide by 1 50Mhz Clock
+    EPwm7Regs.TBPRD = 5000; // Set Period to 1ms sample. Input clock is 50MHz.
+    // Notice here that we are not setting CMPA or CMPB because we are not using the PWM signal
+    EPwm7Regs.ETSEL.bit.SOCAEN = 1; //enable SOCA
+    EPwm7Regs.TBCTL.bit.CTRMODE = 0; //unfreeze, and enter up count mode
     EDIS;
 
     // Enable CPU int1 which is connected to CPU-Timer 0, CPU int13
@@ -374,6 +412,10 @@ void main(void)
     PieCtrlRegs.PIEIER12.bit.INTx9 = 1;
     // CH Enable Group 1 Interrupt 6
     PieCtrlRegs.PIEIER1.bit.INTx6 = 1;
+    //CJS Enable Group for ADCC1 at Group 1 Interrupt 3
+    PieCtrlRegs.PIEIER1.bit.INTx3 = 1;
+    //CH Enable ADCB1 Interrupt 1.2
+    PieCtrlRegs.PIEIER1.bit.INTx2 = 1;
 	
     // Enable global Interrupts and higher priority real-time debug events
     EINT;  // Enable Global interrupt INTM
@@ -386,9 +428,15 @@ void main(void)
         if (UARTPrint == 1 ) {
 //			serial_printf(&SerialA,"Num Timer2:%ld Num SerialRX: %ld\r\n",CpuTimer2.InterruptCount,numRXA);
 //            UART_printfLine(1,"Timer2 Calls %ld",CpuTimer2.InterruptCount);
-//            UART_printfLine(2,"Num SerialRX %ld",numRXA);
-//            UART_printfLine(1, "ADCIND0 V: %.2f", ADCIND0_scaled);
-            serial_printf(&SerialA,"xk V: %.2f yk V: %.2f\n\r",xk,yk);
+
+            //CJS Print the Degrees/Second conversions to LCD.
+            UART_printfLine(1, "X4: %.2f  Z4: %.2f", X4degSec, Z4DegSec);
+            UART_printfLine(2, " X: %.2f   Z: %.2f", XDegSec, ZDegSec);
+
+            //CJS Print also to TerraTerm
+            serial_printf(&SerialA,"X4: %6.2f \t Z4: %6.2f \t X: %6.2f \t Z: %6.2f \t ADCC Count: %ld\r\n",X4degSec, Z4DegSec, XDegSec, ZDegSec, ADCC_ISR_count);
+
+            //
             UARTPrint = 0;
         }
     }
@@ -456,6 +504,92 @@ __interrupt void cpu_timer2_isr(void)
 	}
 }
 
+//CH ADCB Interrupt
+__interrupt void ADCB_ISR(void){
+    //CH get raw adcb0 result from ADCRESULT0
+    float adcb0result = AdcbResultRegs.ADCRESULT0;
+
+    //scaled voltage result
+    float scaledAdcbResult0 = (adcb0result / 4095.0) * 3.0;
+
+    //Set to DACA
+    setDACA(scaledAdcbResult0);
+
+    AdcbRegs.ADCINTFLGCLR.bit.ADCINT1 = 1; //clear interrupt flag
+    PieCtrlRegs.PIEACK.all = PIEACK_GROUP1;
+}
+
+
+//CJS ADCC ISR
+__interrupt void ADCC_ISR (void) {
+    //CJS Read the Four result registers
+    float adcc0result = AdccResultRegs.ADCRESULT0;
+    float adcc1result = AdccResultRegs.ADCRESULT1;
+    float adcc2result = AdccResultRegs.ADCRESULT2;
+    float adcc3result = AdccResultRegs.ADCRESULT3;
+
+    //CJS Get scaled results.
+    float scaledAdccResult0 = (adcc0result / 4095.0) * 3.0;
+    float scaledAdccResult1 = (adcc1result / 4095.0) * 3.0;
+    float scaledAdccResult2 = (adcc2result / 4095.0) * 3.0;
+    float scaledAdccResult3 = (adcc3result / 4095.0) * 3.0;
+
+
+
+//    float X4degSec = 0; //ADCINC3 SOC1
+//    float Z4DegSec = 0;   //ADCINC4 SOC2
+//    float XDegSec = 0;    //ADCINC2 SOC0
+//    float ZDegSec = 0;    //ADCINC5 SOC3
+
+    //Convert scaled results to degrees/second --CJS
+    //CJS High accuracy guys are: SOC1 and 2
+//    X4degSec = scaledAdccResult1 * 100.0 - 123.0;
+//    Z4DegSec = scaledAdccResult2 * 100.0 - 123.0;
+
+    //CJS Regular accuracy guys are: SOC 0 and 3
+//    XDegSec = scaledAdccResult0 * 400.0 - 492.0;
+//    ZDegSec = scaledAdccResult3 * 400.0 - 492.0;
+
+
+
+
+    if(ADCC_ISR_count <= 1000){ //CJS For the first 1 second, do nothing.
+        //Do nothing
+
+    } else if (ADCC_ISR_count > 1000 && ADCC_ISR_count <= 3000){ //CJS For 2 seconds...
+        sum4Z   += scaledAdccResult2; //CJS Add current value to global var.
+        sumZ    += scaledAdccResult3;
+        sum4X   += scaledAdccResult1;
+        sumX    += scaledAdccResult0;
+
+
+    } else if (ADCC_ISR_count == 3001){ //CJS Get average (zero) baseline
+        zero4Z  = sum4Z / 2000.0;
+        zeroZ   = sumZ  / 2000.0;
+        zero4X  = sum4X / 2000.0;
+        zeroX   = sumX  / 2000.0;
+    }
+    else { //CJS Set original converted variables to themselves minus the correction variables.
+        X4degSec    = (scaledAdccResult1 - zero4X) * 100.0;// - 123.0;
+        Z4DegSec    = (scaledAdccResult2 - zero4Z) * 100.0;// - 123.0;
+        XDegSec     = (scaledAdccResult0 - zeroX)  * 400.0;// - 492.0;
+        ZDegSec     = (scaledAdccResult3 - zeroZ)  * 400.0;// - 492.0;
+    }
+
+
+
+    //Print to Serial Every 100ms
+    if ((ADCD_ISR_count % 100) == 0){
+        UARTPrint = 1;
+    }
+    ADCC_ISR_count++;
+
+    //CJS PIECE CLEAR THING
+    AdccRegs.ADCINTFLGCLR.bit.ADCINT1 = 1; //clear interrupt flag
+    PieCtrlRegs.PIEACK.all = PIEACK_GROUP1;
+}
+
+
 //adcd1 pie interrupt
 __interrupt void ADCD_ISR (void)
 {
@@ -485,16 +619,19 @@ __interrupt void ADCD_ISR (void)
     // Here write voltages value to DACA
     //setDACA(ADCIND0_scaled);
     //CH set yk to DACA
-    setDACA(yk);
+
+    //CH EX 4 commented out
+    //setDACA(yk);
 
     // Print ADCIND0’s voltage value to TeraTerm every 100ms by setting UARTPrint =1
-    if ((ADCD_ISR_count % 100) == 0){
-        UARTPrint = 1;
-    }
+//    if ((ADCD_ISR_count % 100) == 0){
+//        UARTPrint = 1;
+//    }
 
     ADCD_ISR_count++;
 
     AdcdRegs.ADCINTFLGCLR.bit.ADCINT1 = 1; //clear interrupt flag
     PieCtrlRegs.PIEACK.all = PIEACK_GROUP1;
 }
+
 
