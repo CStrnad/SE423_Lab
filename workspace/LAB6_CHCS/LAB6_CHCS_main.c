@@ -1,7 +1,7 @@
 //#############################################################################
-// FILE:   LAB5_CHCS_main.c
+// FILE:   LAB6_CHCS_main.c
 //
-// TITLE:  Lab 5 C File for SE423 Mechatronics Lab
+// TITLE:  Lab 6 C File for SE423 Mechatronics Lab
 //
 // Initials CH (Chris Hahn) and CJS (Chris Strnad)
 //#############################################################################
@@ -14,6 +14,7 @@
 #include <math.h>
 #include <limits.h>
 #include "F28x_Project.h"
+#include "F2837xD_SWPrioritizedIsrLevels.h"
 #include "driverlib.h"
 #include "device.h"
 #include "F28379dSerial.h"
@@ -24,6 +25,7 @@
 #define PI          3.1415926535897932384626433832795
 #define TWOPI       6.283185307179586476925286766559
 #define HALFPI      1.5707963267948966192313216916398
+#define FEETINONEMETER 3.28083989501312
 // The Launchpad's CPU Frequency set to 200 you should not change this value
 #define LAUNCHPAD_CPU_FREQUENCY 200
 
@@ -32,9 +34,14 @@
 __interrupt void cpu_timer0_isr(void);
 __interrupt void cpu_timer1_isr(void);
 __interrupt void cpu_timer2_isr(void);
-__interrupt void SWI_isr(void);
+__interrupt void SWI1_HighestPriority(void);
+__interrupt void SWI2_MiddlePriority(void);
+__interrupt void SWI3_LowestPriority(void);
 __interrupt void ADCC_ISR(void);    //CJS ADCC Interrupt predef.
 void setupSpib(void); // CH Setup SPIB function predef.
+void PostSWI1(void);
+void PostSWI3(void);
+
 
 //CH predefinitions
 void init_eQEPS(void);
@@ -137,6 +144,38 @@ float bearingK4Old = 0;
 float gyroZOld = 0;
 float gyroZ4Old = 0;
 
+//CJS Global Defs from LADAR Lab 6 backup
+uint32_t timecount = 0;
+extern datapts ladar_data[228]; //distance data from LADAR
+extern float printLV1;
+extern float printLV2;
+extern float LADARrightfront;
+extern float LADARfront;
+extern LVSendFloats_t DataToLabView;
+extern char LVsenddata[LVNUM_TOFROM_FLOATS*4+2];
+extern float fromLVvalues[LVNUM_TOFROM_FLOATS];
+extern char G_command[]; //command for getting distance -120 to 120 degree
+extern uint16_t G_len; //length of command
+extern xy ladar_pts[228]; //xy data
+extern uint16_t LADARpingpong;
+extern float LADARxoffset;
+extern float LADARyoffset;
+extern uint16_t newLinuxCommands;
+extern float LinuxCommands[CMDNUM_FROM_FLOATS];
+extern uint16_t NewLVData;
+uint16_t LADARi = 0;
+pose ROBOTps = {0,0,0}; //robot position
+pose LADARps = {3.5/12.0,0,1};  // 3.5/12 for front mounting, theta is not used in this current code
+float printLinux1 = 0;
+float printLinux2 = 0;
+
+//--------------------- SWI Defs----------------------
+void PostSWI1(void){
+    PieCtrlRegs.PIEIFR12.bit.INTx9 = 1; //CJS Manually interrupt SWI1
+}
+void PostSWI3(void){
+    PieCtrlRegs.PIEIFR12.bit.INTx11 = 1; //CJS Manually interrupt SWI3
+}
 
 
 
@@ -360,6 +399,14 @@ void main(void)
     GPIO_SetupPinOptions(125, GPIO_OUTPUT, GPIO_PUSHPULL);
     GpioDataRegs.GPDSET.bit.GPIO125 = 1;
 
+    GPIO_SetupPinMux(61, GPIO_MUX_CPU1, 0);
+    GPIO_SetupPinOptions(61, GPIO_OUTPUT, GPIO_PUSHPULL);
+    GpioDataRegs.GPBCLEAR.bit.GPIO61 = 1;
+
+    GPIO_SetupPinMux(67, GPIO_MUX_CPU1, 0);
+    GPIO_SetupPinOptions(67, GPIO_OUTPUT, GPIO_PUSHPULL);
+    GpioDataRegs.GPCCLEAR.bit.GPIO67 = 1;
+
     // Clear all interrupts and initialize PIE vector table:
     // Disable CPU interrupts
     DINT;
@@ -398,8 +445,9 @@ void main(void)
     PieVectTable.SCID_TX_INT = &TXDINT_data_sent;
     PieVectTable.ADCC1_INT = &ADCC_ISR;                 //CJS ADCC PIE Entry
     PieVectTable.SPIB_RX_INT = &SPIB_isr; //CH SPIB PIE
-
-    PieVectTable.EMIF_ERROR_INT = &SWI_isr;
+    PieVectTable.EMIF_ERROR_INT = &SWI1_HighestPriority;
+    PieVectTable.RAM_CORRECTABLE_ERROR_INT = &SWI2_MiddlePriority;
+    PieVectTable.FLASH_CORRECTABLE_ERROR_INT = &SWI3_LowestPriority;
     EDIS;    // This is needed to disable write to EALLOW protected registers
 
 
@@ -410,7 +458,7 @@ void main(void)
     // Configure CPU-Timer 0, 1, and 2 to interrupt every given period:
     // 200MHz CPU Freq,                       Period (in uSeconds)
     ConfigCpuTimer(&CpuTimer0, LAUNCHPAD_CPU_FREQUENCY, 10000);
-    ConfigCpuTimer(&CpuTimer1, LAUNCHPAD_CPU_FREQUENCY, 1000);
+    ConfigCpuTimer(&CpuTimer1, LAUNCHPAD_CPU_FREQUENCY, 100000);
     ConfigCpuTimer(&CpuTimer2, LAUNCHPAD_CPU_FREQUENCY, 40000);
 
     // Enable CpuTimer Interrupt bit TIE
@@ -418,10 +466,16 @@ void main(void)
     CpuTimer1Regs.TCR.all = 0x4000;
     CpuTimer2Regs.TCR.all = 0x4000;
 
-    init_serialSCIA(&SerialA,115200);
-    init_serialSCIB(&SerialB,19200);
-//    init_serialSCIC(&SerialC,115200);
-//    init_serialSCID(&SerialD,115200);
+    DELAY_US(1000000);  // Delay 1 second giving LADAR Time to power on after system power on
+
+   init_serialSCIA(&SerialA,115200);
+   init_serialSCIB(&SerialB,19200);
+   init_serialSCIC(&SerialC,19200);
+   init_serialSCID(&SerialD,2083332);
+
+   for (LADARi = 0; LADARi < 228; LADARi++) {
+       ladar_data[LADARi].angle = ((3*LADARi+44)*0.3515625-135)*0.01745329; //0.017453292519943 is pi/180, multiplication is faster; 0.3515625 is 360/1024
+   }
 
 //    EALLOW;
 
@@ -527,17 +581,27 @@ void main(void)
     // Enable TINT0 in the PIE: Group 1 interrupt 7
     PieCtrlRegs.PIEIER1.bit.INTx7 = 1;
     // Enable SWI in the PIE: Group 12 interrupt 9
-    PieCtrlRegs.PIEIER12.bit.INTx9 = 1;
+//    PieCtrlRegs.PIEIER12.bit.INTx9 = 1;   //CJS Disable original SWI
     //CJS Enable Group for ADCC1 at Group 1 Interrupt 3
     PieCtrlRegs.PIEIER1.bit.INTx3 = 1;
     // CH Enable SPIB_RX interrupt Group 6 interrupt 3
     PieCtrlRegs.PIEIER6.bit.INTx3 = 1;
+    PieCtrlRegs.PIEIER12.bit.INTx9 = 1; //SWI1
+    PieCtrlRegs.PIEIER12.bit.INTx10 = 1; //SWI2
+    PieCtrlRegs.PIEIER12.bit.INTx11 = 1; //SWI3  Lowest priority
 
     // Enable global Interrupts and higher priority real-time debug events
     EINT;  // Enable Global interrupt INTM
     ERTM;  // Enable Global realtime interrupt DBGM
 
-    
+    char S_command[19] = "S1152000124000\n";//this change the baud rate to 115200
+    uint16_t S_len = 19;
+    serial_sendSCIC(&SerialC, S_command, S_len);
+
+
+    DELAY_US(1000000);  // Delay letting LADAR change its Baud rate
+    init_serialSCIC(&SerialC,115200);
+
     // IDLE loop. Just sit and loop forever (optional):
     while(1)
     {
@@ -563,9 +627,12 @@ void main(void)
 
             //CH lab 6 print MPU gyroz, ADCC gyroz4, and left/right wheel velocities to LCD screen
             //CH print all 6 MPU sensor readings to tera term
-            UART_printfLine(1, "MPZ:%0.2f ACZ:%0.2f", gyroz, Z4DegSec);
-            UART_printfLine(2, "vl: %.2f vr: %.2f", v_left, v_right);
+//            UART_printfLine(1, "MPZ:%0.2f ACZ:%0.2f", gyroz, Z4DegSec);
+//            UART_printfLine(2, "vl: %.2f vr: %.2f", v_left, v_right);
             serial_printf(&SerialA, "GX: %.2f\t GY: %.2f\t GZ: %.2f\t AX: %.2f\t AY: %.2f\t AZ: %.2f\t\r\n", gyrox,gyroy,gyroz,accelx,accely,accelz);
+            UART_printfLine(1,"LV1:%.3f LV2:%.3f",printLV1,printLV2);
+            UART_printfLine(2,"F%.4f R%.4f",LADARfront,LADARrightfront);
+
 
 
             UARTPrint = 0;
@@ -575,25 +642,7 @@ void main(void)
 
 
 
-// SWI_isr,  Using this interrupt as a Software started interrupt
-__interrupt void SWI_isr(void) {
 
-    // These three lines of code allow SWI_isr, to be interrupted by other interrupt functions
-    // making it lower priority than all other Hardware interrupts.
-    PieCtrlRegs.PIEACK.all = PIEACK_GROUP12;
-    asm("       NOP");                    // Wait one cycle
-    EINT;                                 // Clear INTM to enable interrupts
-
-
-
-    // Insert SWI ISR Code here.......
-
-
-    numSWIcalls++;
-    
-    DINT;
-
-}
 
 // cpu_timer0_isr - CPU Timer0 ISR
 __interrupt void cpu_timer0_isr(void)
@@ -619,13 +668,13 @@ __interrupt void cpu_timer0_isr(void)
 // cpu_timer1_isr - CPU Timer1 ISR
 __interrupt void cpu_timer1_isr(void)
 {
-
+    serial_sendSCIC(&SerialC, G_command, G_len);
 
 
     //Print to Serial Every 100ms
-    if ((CpuTimer1.InterruptCount % 100) == 0){
-        UARTPrint = 1;
-    }
+//    if ((CpuTimer1.InterruptCount % 100) == 0){
+//        UARTPrint = 1;
+//    }
 
     CpuTimer1.InterruptCount++;
 }
@@ -723,124 +772,7 @@ __interrupt void SPIB_isr(void){
     gyroy = gyroyraw*250.0/32767.0;
     gyroz = gyrozraw*250.0/32767.0;
 
-    if(ADCC_ISR_count <= 1000){ //CJS For the first 1 second, do nothing.
-        setEPWM1A(0);
-        setEPWM2A(0);
-        //Do nothing
-    } else if (ADCC_ISR_count > 1000 && ADCC_ISR_count <= 3000){ //CJS For 2 seconds...
-        setEPWM1A(0);
-        setEPWM2A(0);
-        sum4Z   += scaledAdccResult2; //CJS Add current value to global var.
-        sumZ    += scaledAdccResult3;
-        sum4X   += scaledAdccResult1;
-        sumX    += scaledAdccResult0;
-        //CH gyroz reading
-        sumGyroZ += gyroz;
-    } else if (ADCC_ISR_count == 3001){ //CJS Get average (zero) baseline
-        setEPWM1A(0);
-        setEPWM2A(0);
-        zero4Z  = sum4Z / 2000.0;
-        zeroZ   = sumZ  / 2000.0;
-        zero4X  = sum4X / 2000.0;
-        zeroX   = sumX  / 2000.0;
-        zeroGyroZ = sumGyroZ / 2000.0;
-    }
-    else { //CJS Set original converted variables to themselves minus the correction variables.
-        X4degSec    = (scaledAdccResult1 - zero4X) * 100.0;// - 123.0;
-        Z4DegSec    = (scaledAdccResult2 - zero4Z) * 100.0;// - 123.0;
-        XDegSec     = (scaledAdccResult0 - zeroX)  * 400.0;// - 492.0;
-        ZDegSec     = (scaledAdccResult3 - zeroZ)  * 400.0;// - 492.0;
-        gyroz -= zeroGyroZ;
-
-        //CH getting raw values for wheels and encoder
-        LeftWheel = readEncLeft();
-        RightWheel = readEncRight();
-        encWheel = readEncWheel();
-
-        //CH converting raw values to distance values via radpft conversion factor
-        Lwheeldist = LeftWheel / radpft;
-        Rwheeldist = RightWheel / radpft;
-
-        //CH calculating velocity of wheels by taking delta x over delta t
-        v_left = (Lwheeldist - Lwheeldistold)/0.001;
-        v_right = (Rwheeldist - Rwheeldistold)/0.001;
-
-        //        //CH assign reference velocity
-        //        Vref = encWheel/20.0;
-
-        //CH calculating error
-        errLeft = Vref - v_left;
-        errRight = Vref - v_right;
-
-        //CH calculating integral
-        IkRight = IkRightOld + ((errRight + errRightOld)/2) * 0.001;
-        IkLeft = IkLeftOld + ((errLeft + errLeftOld)/2) * 0.001;
-
-        //CH turning code Ex 4
-        turn = encWheel/20.0;
-        errSteer = v_right - v_left + turn;
-        errLeft = errLeft + errSteer*Kp_turn;
-        errRight = errRight - errSteer*Kp_turn;
-
-        //CH assign new wheel velocity from block diagram
-        uLeft = Kp*errLeft + Ki*IkLeft;
-        uRight = Kp*errRight  + Ki*IkRight;
-
-        //Integral Wind-up correction
-        if(fabs(uLeft) > 10) IkLeft = IkLeftOld;
-        if(fabs(uRight) > 10) IkRight = IkRightOld;
-
-
-        //        uLeft = encWheel;
-        //        uRight = encWheel;
-        //    uLeft  = 0;
-        //    uRight = 0; //CJS set disp to 0 for friction test.
-
-        // CH set bounds for uLeft and uRight
-        if (uLeft >= 10){
-            uLeft = 10;
-        }
-        if (uLeft <= -10){
-            uLeft = -10;
-        }
-        if (uRight >= 10){
-            uRight = 10;
-        }
-        if (uRight <= -10){
-            uRight = -10;
-        }
-
-        //CJS Friction compensation for Left and Right motors.
-        if (v_left > 0.0) uLeft = uLeft + vPos * v_left + cPos;
-        else uLeft = uLeft + vNeg * v_left + cNeg;
-
-        if (v_right > 0.0) uRight = uRight + vPos * v_right + cPos;
-        else uRight = uRight + vNeg * v_right + cNeg;
-
-        //CH Ex6 Integrating gyro
-        bearingK = bearingKOld + ((ZDegSec + gyroZOld)/2)*.001;
-        bearingK4 = bearingK4Old + ((Z4DegSec + gyroZ4Old)/2)*.001;
-
-        // CH calling the functions to enable wheel function
-        setEPWM1A(uLeft);
-        setEPWM2A(-uRight);
-        //CH set old values lab 5
-        errLeftOld = errLeft;
-        errRightOld = errRight;
-        IkRightOld = IkRight;
-        IkLeftOld = IkLeft;
-        gyroZOld = ZDegSec;
-        gyroZ4Old = Z4DegSec;
-        bearingKOld = bearingK;
-        bearingK4Old = bearingK4;
-
-        //-----------------------------------------------------------------------------
-
-        //CH setting old values as current values before loop exits
-        Lwheeldistold = Lwheeldist;
-        Rwheeldistold = Rwheeldist;
-
-    }
+    PostSWI1();
 
 
     // Later when actually communicating with the MPU9250 do something with the data. Now do nothing.
@@ -1081,4 +1013,304 @@ void setupSpib(void) //Call this function in main() somewhere after the DINT; li
     SpibRegs.SPIFFRX.bit.RXFFOVFCLR=1; // Clear Overflow flag
     SpibRegs.SPIFFRX.bit.RXFFINTCLR=1; // Clear Interrupt flag
     PieCtrlRegs.PIEACK.all = PIEACK_GROUP6;
+}
+
+//
+// Connected to PIEIER12_9 (use MINT12 and MG12_9 masks):
+//
+__interrupt void SWI1_HighestPriority(void)     // EMIF_ERROR
+{
+    GpioDataRegs.GPBSET.bit.GPIO61 = 1;
+    // Set interrupt priority:
+    volatile Uint16 TempPIEIER = PieCtrlRegs.PIEIER12.all;
+    IER |= M_INT12;
+    IER    &= MINT12;                          // Set "global" priority
+    PieCtrlRegs.PIEIER12.all &= MG12_9;  // Set "group"  priority
+    PieCtrlRegs.PIEACK.all = 0xFFFF;    // Enable PIE interrupts
+    __asm("  NOP");
+    EINT;
+
+    uint16_t i = 0;//for loop
+
+    //PI Control Code from Lab 5 - CJS
+    if(timecount <= 1000){ //CJS For the first 1 second, do nothing.
+        setEPWM1A(0);
+        setEPWM2A(0);
+        //Do nothing
+    } else if (timecount > 1000 && timecount <= 3000){ //CJS For 2 seconds...
+        setEPWM1A(0);
+        setEPWM2A(0);
+        sum4Z   += scaledAdccResult2; //CJS Add current value to global var.
+        sumZ    += scaledAdccResult3;
+        sum4X   += scaledAdccResult1;
+        sumX    += scaledAdccResult0;
+        //CH gyroz reading
+        sumGyroZ += gyroz;
+    } else if (timecount == 3001){ //CJS Get average (zero) baseline
+        setEPWM1A(0);
+        setEPWM2A(0);
+        zero4Z  = sum4Z / 2000.0;
+        zeroZ   = sumZ  / 2000.0;
+        zero4X  = sum4X / 2000.0;
+        zeroX   = sumX  / 2000.0;
+        zeroGyroZ = sumGyroZ / 2000.0;
+    }
+    else { //CJS Set original converted variables to themselves minus the correction variables.
+        X4degSec    = (scaledAdccResult1 - zero4X) * 100.0;// - 123.0;
+        Z4DegSec    = (scaledAdccResult2 - zero4Z) * 100.0;// - 123.0;
+        XDegSec     = (scaledAdccResult0 - zeroX)  * 400.0;// - 492.0;
+        ZDegSec     = (scaledAdccResult3 - zeroZ)  * 400.0;// - 492.0;
+        gyroz -= zeroGyroZ;
+
+        //CH getting raw values for wheels and encoder
+        LeftWheel = readEncLeft();
+        RightWheel = readEncRight();
+        encWheel = readEncWheel();
+
+        //CH converting raw values to distance values via radpft conversion factor
+        Lwheeldist = LeftWheel / radpft;
+        Rwheeldist = RightWheel / radpft;
+
+        //CH calculating velocity of wheels by taking delta x over delta t
+        v_left = (Lwheeldist - Lwheeldistold)/0.001;
+        v_right = (Rwheeldist - Rwheeldistold)/0.001;
+
+        //        //CH assign reference velocity
+        //        Vref = encWheel/20.0;
+
+        //CH calculating error
+        errLeft = Vref - v_left;
+        errRight = Vref - v_right;
+
+        //CH calculating integral
+        IkRight = IkRightOld + ((errRight + errRightOld)/2) * 0.001;
+        IkLeft = IkLeftOld + ((errLeft + errLeftOld)/2) * 0.001;
+
+        //CH turning code Ex 4
+        //turn = encWheel/20.0;
+        errSteer = v_right - v_left + turn;
+        errLeft = errLeft + errSteer*Kp_turn;
+        errRight = errRight - errSteer*Kp_turn;
+
+        //CH assign new wheel velocity from block diagram
+        uLeft = Kp*errLeft + Ki*IkLeft;
+        uRight = Kp*errRight  + Ki*IkRight;
+
+        //Integral Wind-up correction
+        if(fabs(uLeft) > 10) IkLeft = IkLeftOld;
+        if(fabs(uRight) > 10) IkRight = IkRightOld;
+
+
+        //        uLeft = encWheel;
+        //        uRight = encWheel;
+        //    uLeft  = 0;
+        //    uRight = 0; //CJS set disp to 0 for friction test.
+
+        // CH set bounds for uLeft and uRight
+        if (uLeft >= 10){
+            uLeft = 10;
+        }
+        if (uLeft <= -10){
+            uLeft = -10;
+        }
+        if (uRight >= 10){
+            uRight = 10;
+        }
+        if (uRight <= -10){
+            uRight = -10;
+        }
+
+        //CJS Friction compensation for Left and Right motors.
+        if (v_left > 0.0) uLeft = uLeft + vPos * v_left + cPos;
+        else uLeft = uLeft + vNeg * v_left + cNeg;
+
+        if (v_right > 0.0) uRight = uRight + vPos * v_right + cPos;
+        else uRight = uRight + vNeg * v_right + cNeg;
+
+        //CH Ex6 Integrating gyro
+        bearingK = bearingKOld + ((ZDegSec + gyroZOld)/2)*.001;
+        bearingK4 = bearingK4Old + ((Z4DegSec + gyroZ4Old)/2)*.001;
+
+        // CH calling the functions to enable wheel function
+        setEPWM1A(uLeft);
+        setEPWM2A(-uRight);
+        //CH set old values lab 5
+        errLeftOld = errLeft;
+        errRightOld = errRight;
+        IkRightOld = IkRight;
+        IkLeftOld = IkLeft;
+        gyroZOld = ZDegSec;
+        gyroZ4Old = Z4DegSec;
+        bearingKOld = bearingK;
+        bearingK4Old = bearingK4;
+
+        //-----------------------------------------------------------------------------
+
+        //CH setting old values as current values before loop exits
+        Lwheeldistold = Lwheeldist;
+        Rwheeldistold = Rwheeldist;
+
+    }
+
+
+    //##### END PI Control Code
+
+    if (newLinuxCommands == 1) {
+        newLinuxCommands = 0;
+        vref = LinuxCommands[0];
+        turn = LinuxCommands[1];
+        //value3 = LinuxCommands[2];
+        //value4 = LinuxCommands[3];
+        //value5 = LinuxCommands[4];
+        //value6 = LinuxCommands[5];
+        //value7 = LinuxCommands[6];
+        //value8 = LinuxCommands[7];
+        //value9 = LinuxCommands[8];
+        //value10 = LinuxCommands[9];
+        //value11 = LinuxCommands[10];
+    }
+
+
+    if (NewLVData == 1) {
+        NewLVData = 0;
+        printLV1 = fromLVvalues[0];
+        printLV2 = fromLVvalues[1];
+    }
+
+    if((timecount%250) == 0) {
+        DataToLabView.floatData[0] = ROBOTps.x;
+        DataToLabView.floatData[1] = ROBOTps.y;
+        DataToLabView.floatData[2] = (float)timecount;
+        DataToLabView.floatData[3] = ROBOTps.theta;
+        DataToLabView.floatData[4] = ROBOTps.theta;
+        DataToLabView.floatData[5] = ROBOTps.theta;
+        DataToLabView.floatData[6] = ROBOTps.theta;
+        DataToLabView.floatData[7] = ROBOTps.theta;
+        LVsenddata[0] = '*';  // header for LVdata
+        LVsenddata[1] = '$';
+        for (i=0;i<LVNUM_TOFROM_FLOATS*4;i++) {
+            if (i%2==0) {
+                LVsenddata[i+2] = DataToLabView.rawData[i/2] & 0xFF;
+            } else {
+                LVsenddata[i+2] = (DataToLabView.rawData[i/2]>>8) & 0xFF;
+            }
+        }
+        serial_sendSCID(&SerialD, LVsenddata, 4*LVNUM_TOFROM_FLOATS + 2);
+    }
+
+
+    timecount++;
+
+    GpioDataRegs.GPBCLEAR.bit.GPIO61 = 1;
+
+    //##############################################################################################################
+    //
+    // Restore registers saved:
+    //
+    DINT;
+    PieCtrlRegs.PIEIER12.all = TempPIEIER;
+
+}
+
+//
+// Connected to PIEIER12_10 (use MINT12 and MG12_10 masks):
+//
+__interrupt void SWI2_MiddlePriority(void)     // RAM_CORRECTABLE_ERROR
+{
+    // Set interrupt priority:
+    volatile Uint16 TempPIEIER = PieCtrlRegs.PIEIER12.all;
+    IER |= M_INT12;
+    IER    &= MINT12;                          // Set "global" priority
+    PieCtrlRegs.PIEIER12.all &= MG12_10;  // Set "group"  priority
+    PieCtrlRegs.PIEACK.all = 0xFFFF;    // Enable PIE interrupts
+    __asm("  NOP");
+    EINT;
+
+    //###############################################################################################
+    // Insert SWI ISR Code here.......
+
+    if (LADARpingpong == 1) {
+        // LADARrightfront is the min of dist 52, 53, 54, 55, 56
+        LADARrightfront = 19; // 19 is greater than max feet
+        for (LADARi = 52; LADARi <= 56 ; LADARi++) {
+            if (ladar_data[LADARi].distance_ping < LADARrightfront) {
+                LADARrightfront = ladar_data[LADARi].distance_ping;
+            }
+        }
+        // LADARfront is the min of dist 111, 112, 113, 114, 115
+        LADARfront = 19;
+        for (LADARi = 111; LADARi <= 115 ; LADARi++) {
+            if (ladar_data[LADARi].distance_ping < LADARfront) {
+                LADARfront = ladar_data[LADARi].distance_ping;
+            }
+        }
+        LADARxoffset = ROBOTps.x + (LADARps.x*cosf(ROBOTps.theta)-LADARps.y*sinf(ROBOTps.theta - PI/2.0));
+        LADARyoffset = ROBOTps.y + (LADARps.x*sinf(ROBOTps.theta)-LADARps.y*cosf(ROBOTps.theta - PI/2.0));
+        for (LADARi = 0; LADARi < 228; LADARi++) {
+
+            ladar_pts[LADARi].x = LADARxoffset + ladar_data[LADARi].distance_ping*cosf(ladar_data[LADARi].angle + ROBOTps.theta);
+            ladar_pts[LADARi].y = LADARyoffset + ladar_data[LADARi].distance_ping*sinf(ladar_data[LADARi].angle + ROBOTps.theta);
+
+        }
+    } else if (LADARpingpong == 0) {
+        // LADARrightfront is the min of dist 52, 53, 54, 55, 56
+        LADARrightfront = 19; // 19 is greater than max feet
+        for (LADARi = 52; LADARi <= 56 ; LADARi++) {
+            if (ladar_data[LADARi].distance_pong < LADARrightfront) {
+                LADARrightfront = ladar_data[LADARi].distance_pong;
+            }
+        }
+        // LADARfront is the min of dist 111, 112, 113, 114, 115
+        LADARfront = 19;
+        for (LADARi = 111; LADARi <= 115 ; LADARi++) {
+            if (ladar_data[LADARi].distance_pong < LADARfront) {
+                LADARfront = ladar_data[LADARi].distance_pong;
+            }
+        }
+        LADARxoffset = ROBOTps.x + (LADARps.x*cosf(ROBOTps.theta)-LADARps.y*sinf(ROBOTps.theta - PI/2.0));
+        LADARyoffset = ROBOTps.y + (LADARps.x*sinf(ROBOTps.theta)-LADARps.y*cosf(ROBOTps.theta - PI/2.0));
+        for (LADARi = 0; LADARi < 228; LADARi++) {
+
+            ladar_pts[LADARi].x = LADARxoffset + ladar_data[LADARi].distance_pong*cosf(ladar_data[LADARi].angle + ROBOTps.theta);
+            ladar_pts[LADARi].y = LADARyoffset + ladar_data[LADARi].distance_pong*sinf(ladar_data[LADARi].angle + ROBOTps.theta);
+
+        }
+}
+
+
+
+
+    //###############################################################################################
+    //
+    // Restore registers saved:
+    //
+    DINT;
+    PieCtrlRegs.PIEIER12.all = TempPIEIER;
+
+}
+
+//
+// Connected to PIEIER12_11 (use MINT12 and MG12_11 masks):
+//
+__interrupt void SWI3_LowestPriority(void)     // FLASH_CORRECTABLE_ERROR
+{
+    // Set interrupt priority:
+    volatile Uint16 TempPIEIER = PieCtrlRegs.PIEIER12.all;
+    IER |= M_INT12;
+    IER    &= MINT12;                          // Set "global" priority
+    PieCtrlRegs.PIEIER12.all &= MG12_11;  // Set "group"  priority
+    PieCtrlRegs.PIEACK.all = 0xFFFF;    // Enable PIE interrupts
+    __asm("  NOP");
+    EINT;
+
+    //###############################################################################################
+    // Insert SWI ISR Code here.......
+
+    //###############################################################################################
+    //
+    // Restore registers saved:
+    //
+    DINT;
+    PieCtrlRegs.PIEIER12.all = TempPIEIER;
+
 }
