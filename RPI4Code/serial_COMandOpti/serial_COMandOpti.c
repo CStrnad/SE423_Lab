@@ -33,13 +33,6 @@
 #define BUFFSIZE 1024 * 8
 #define UDP_PORT 3500
 #define MSG_BUFFER 1024
-#define MAP_SIZE 4096UL
-#define MAP_MASK (MAP_SIZE - 1)
-
-int fd;  // variables used to map to physical memory addresses
-void *map_base;
-off_t target;
-int32_t *myuart2;
 
 int packet_size;
 int gs_udpcoms_skt;                  // udp coms socket
@@ -169,44 +162,8 @@ char Sendarray[40];  // Only need 20 so oversized on purpose
  *   sets the serial port up at 115200 baud
  */
 int setup_serial()
-{
-  
-  /*  Memory map to physical memory spaces of the UART2 Registers*/	
-	if((fd = open("/dev/mem", O_RDWR | O_SYNC)) == -1) {
-		printf("/dev/mem could not be opened.\n");
-		exit(1);
-	} else {
-		printf("/dev/mem opened.\n");
-	}
-	fflush(stdout);
-    // mmap RPI4 UART2 peripheral registers
-  target = 0xFE201000;
-	/* Map one page for shared memory structure*/
-	map_base = mmap(0, MAP_SIZE, PROT_READ | PROT_WRITE, MAP_SHARED, fd, target);
-	if(map_base == (void *) -1) {
-		printf("Memory map failed.\n");
-		exit(1);
-	} else {
-		printf("gpio Struct mapped at address %p.\n", map_base);
-	}
-	fflush(stdout);
-	myuart2 = (int32_t *) map_base;
-  
+{    
   sd_setup(SERFILE); //starts non-blocking
-
-	printf("\n\n\n\nIntDiv=%d,FracDiv=%d\n\n\n\n",myuart2[265],myuart2[266]);
-  myuart2[256+12] &= ~0x301; // Clear enable bits
-  usleep(100000);
-  myuart2[256+11] &= ~0x10;  // clear FIFO    
-  usleep(100000);
-	myuart2[256+9] = 1;
-	myuart2[256+10] = 28;//59;  // 28 is 2,083,333  59 is 1,562,500
-  usleep(100000);
-  myuart2[256+11] |= 0x10;  //enable fifo
-  usleep(100000);
-  myuart2[256+12] |= 0x301; // Set enable bits
-  usleep(100000);	
-	printf("\n\n\n\nIntDiv=%d,FracDiv=%d\n\n\n\n",myuart2[265],myuart2[266]);
 
   sd_ioflush();
 }
@@ -508,7 +465,7 @@ int main()
           if (receiving_count == 4*LVNUM_TOFROM_FLOATS) {
             receiving_count = 0;
             receiving_state = 0;
-            printf("Time:%.1f,Float1:%.3f,Float2:%.3f\n",shared_mem_ptr_sendto_LVCOMApp->new_ToLV.data_flts[2],shared_mem_ptr_sendto_LVCOMApp->new_ToLV.data_flts[0],shared_mem_ptr_sendto_LVCOMApp->new_ToLV.data_flts[1]);
+            printf("angle:%.3f,x:%.3f,y:%.3f\n",shared_mem_ptr_sendto_LVCOMApp->new_ToLV.data_flts[2],shared_mem_ptr_sendto_LVCOMApp->new_ToLV.data_flts[0],shared_mem_ptr_sendto_LVCOMApp->new_ToLV.data_flts[1]);
 
             if (sem_getvalue(sendto_LVCOMApp_mutex_sem,  &sem_count_send) == 0) {
               if (sem_post(sendto_LVCOMApp_mutex_sem) == -1){
