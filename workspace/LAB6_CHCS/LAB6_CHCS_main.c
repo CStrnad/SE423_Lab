@@ -143,6 +143,10 @@ float bearingKOld = 0;
 float bearingK4Old = 0;
 float gyroZOld = 0;
 float gyroZ4Old = 0;
+float gyrozold = 0;
+float bearingAngleOld = 0;
+float Xpointold = 0;
+float Ypointold = 0;
 
 //CJS Global Defs from LADAR Lab 6 backup
 uint32_t timecount = 0;
@@ -151,6 +155,7 @@ extern float printLV1;
 extern float printLV2;
 extern float LADARrightfront;
 extern float LADARfront;
+float LADARrightrear;
 extern LVSendFloats_t DataToLabView;
 extern char LVsenddata[LVNUM_TOFROM_FLOATS*4+2];
 extern float fromLVvalues[LVNUM_TOFROM_FLOATS];
@@ -168,6 +173,16 @@ pose ROBOTps = {0,0,0}; //robot position
 pose LADARps = {3.5/12.0,0,1};  // 3.5/12 for front mounting, theta is not used in this current code
 float printLinux1 = 0;
 float printLinux2 = 0;
+//CH ex 4 variables inside LinuxCMDApp
+float ref_right_wall = 1.0;
+float left_turn_Start_threshold = 1.3;
+float left_turn_Stop_threshold = 3.2;
+float Kp_right_wall = -2.0;
+float Kp_front_wall = -0.4;
+float front_turn_velocity = 0.4;
+float forward_velocity = 1;
+float turn_command_saturation = 2.0;
+uint16_t right_wall_follow_state = 2;
 
 //--------------------- SWI Defs----------------------
 void PostSWI1(void){
@@ -629,10 +644,15 @@ void main(void)
             //CH print all 6 MPU sensor readings to tera term
 //            UART_printfLine(1, "MPZ:%0.2f ACZ:%0.2f", gyroz, Z4DegSec);
 //            UART_printfLine(2, "vl: %.2f vr: %.2f", v_left, v_right);
-            serial_printf(&SerialA, "GX: %.2f\t GY: %.2f\t GZ: %.2f\t AX: %.2f\t AY: %.2f\t AZ: %.2f\t\r\n", gyrox,gyroy,gyroz,accelx,accely,accelz);
-            UART_printfLine(1,"LV1:%.3f LV2:%.3f",printLV1,printLV2);
-            UART_printfLine(2,"F%.4f R%.4f",LADARfront,LADARrightfront);
-
+            //serial_printf(&SerialA, "GX: %.2f\t GY: %.2f\t GZ: %.2f\t AX: %.2f\t AY: %.2f\t AZ: %.2f\t\r\n", gyrox,gyroy,gyroz,accelx,accely,accelz);
+            //UART_printfLine(1,"turn: %.2f LRR: %.2f",turn, LADARrightrear);
+            //UART_printfLine(2,"F%.4f R%.4f",LADARfront,LADARrightfront); //good rightfront value at 1.29
+            //UART_printfLine(1,"%.1f %.1f %.1f %.1f",Vref,turn,ref_right_wall,left_turn_Start_threshold);
+            //UART_printfLine(2,"%.1f %.1f %.1f %.1f",left_turn_Stop_threshold,Kp_right_wall,Kp_front_wall,front_turn_velocity);
+            //UART_printfLine(2,"%.1f %.1f",forward_velocity,turn_command_saturation);
+            //UART_printfLine(1,"theta: %.2f",ROBOTps.theta);
+            //UART_printfLine(2,"X: %.2f Y: %.2f",ROBOTps.x,ROBOTps.y);
+            UART_printfLine(1,"LV1: %.2f LV2: %.2f",printLV1, printLV2);
 
 
             UARTPrint = 0;
@@ -770,7 +790,7 @@ __interrupt void SPIB_isr(void){
     accelz = accelzraw*4.0/32767.0;
     gyrox = gyroxraw*250.0/32767.0;
     gyroy = gyroyraw*250.0/32767.0;
-    gyroz = gyrozraw*250.0/32767.0;
+    gyroz = gyrozraw*250.0/32767.0; //MPU-9250 Z Gyro reading
 
     PostSWI1();
 
@@ -1030,6 +1050,59 @@ __interrupt void SWI1_HighestPriority(void)     // EMIF_ERROR
     __asm("  NOP");
     EINT;
 
+    // Add declarations for tunable global variables to include:
+    // ref_right_wall – desired distance from right wall. You will have
+    // to figure out what distance is read by the LADAR [54] reading when the robot is
+    // placed approximately 6 to 8 inches from the wall.
+    // left_turn_Start_threshold When front distance less than this, switch to Left Turn state
+    // left_turn_Stop_threshold When front distance greater than this, switch to Right follow
+    // Kp_right_wall – proportional gain for controlling distance of robot to wall,
+    // start with 0.1
+    // Kp_front_wall – proportional gain for turning robot when front wall error is high,
+    // start with 0.1
+    // front_turn_velocity – velocity when the robot starts to turn to avoid
+    // a front wall, use 0.4 to start
+    // forward_velocity – velocity when robot is right wall following, use 1.0 to start
+    // turn_command_saturation – maximum turn command to prevent robot from spinning quickly if
+    // error jumps too high, start with 1.0
+    // These are all ‘knobs’ to tune in lab!
+
+//   //declare other globals that you will need
+//    uint16_t right_wall_follow_state = 2;
+//
+//   //inside SWI1 before PI speed control
+    switch (right_wall_follow_state) {
+        case 1:
+            //Left Turn
+            turn = Kp_front_wall*(14.5 - LADARfront);
+            Vref = front_turn_velocity;
+            if (LADARfront > left_turn_Stop_threshold) {
+                right_wall_follow_state = 2;
+            }
+            break;
+        case 2:
+            //Right Wall Follow
+            Vref = forward_velocity;
+            if ((fabs(ref_right_wall - LADARrightfront)) > 2.2){
+                turn = Kp_right_wall*(ref_right_wall - LADARrightrear);
+
+            } else {
+                turn = Kp_right_wall*(ref_right_wall - LADARrightfront);
+            }
+            if (LADARfront < left_turn_Start_threshold) {
+                right_wall_follow_state = 1;
+            }
+
+            break;
+    }
+    // Add code here to saturate the turn command so that it is not larger
+    // than turn_command_saturation or less than –turn_command_saturation
+    if (turn > turn_command_saturation){
+        turn = turn_command_saturation;
+    } else if (turn < -turn_command_saturation){
+        turn = -turn_command_saturation;
+    }
+
     uint16_t i = 0;//for loop
 
     //PI Control Code from Lab 5 - CJS
@@ -1056,6 +1129,8 @@ __interrupt void SWI1_HighestPriority(void)     // EMIF_ERROR
         zeroGyroZ = sumGyroZ / 2000.0;
     }
     else { //CJS Set original converted variables to themselves minus the correction variables.
+
+
         X4degSec    = (scaledAdccResult1 - zero4X) * 100.0;// - 123.0;
         Z4DegSec    = (scaledAdccResult2 - zero4Z) * 100.0;// - 123.0;
         XDegSec     = (scaledAdccResult0 - zeroX)  * 400.0;// - 492.0;
@@ -1130,6 +1205,12 @@ __interrupt void SWI1_HighestPriority(void)     // EMIF_ERROR
         //CH Ex6 Integrating gyro
         bearingK = bearingKOld + ((ZDegSec + gyroZOld)/2)*.001;
         bearingK4 = bearingK4Old + ((Z4DegSec + gyroZ4Old)/2)*.001;
+        //CH SPI bearing angle
+        ROBOTps.theta = bearingAngleOld + ((gyroz + gyrozold)/2)*.001;
+
+        //CH Integrating MPU-9250 Gyro
+        ROBOTps.x = Xpointold + ((v_left + v_right)/2.0)*cos(ROBOTps.theta*(PI/180))*.001;
+        ROBOTps.y = Ypointold + ((v_left + v_right)/2.0)*sin(ROBOTps.theta*(PI/180))*.001;
 
         // CH calling the functions to enable wheel function
         setEPWM1A(uLeft);
@@ -1143,6 +1224,11 @@ __interrupt void SWI1_HighestPriority(void)     // EMIF_ERROR
         gyroZ4Old = Z4DegSec;
         bearingKOld = bearingK;
         bearingK4Old = bearingK4;
+        gyrozold = gyroz;
+        bearingAngleOld = ROBOTps.theta;
+        Xpointold = ROBOTps.x;
+        Ypointold = ROBOTps.y;
+
 
         //-----------------------------------------------------------------------------
 
@@ -1157,16 +1243,16 @@ __interrupt void SWI1_HighestPriority(void)     // EMIF_ERROR
 
     if (newLinuxCommands == 1) {
         newLinuxCommands = 0;
-        vref = LinuxCommands[0];
+        Vref = LinuxCommands[0];
         turn = LinuxCommands[1];
-        //value3 = LinuxCommands[2];
-        //value4 = LinuxCommands[3];
-        //value5 = LinuxCommands[4];
-        //value6 = LinuxCommands[5];
-        //value7 = LinuxCommands[6];
-        //value8 = LinuxCommands[7];
-        //value9 = LinuxCommands[8];
-        //value10 = LinuxCommands[9];
+        ref_right_wall = LinuxCommands[2];
+        left_turn_Start_threshold = LinuxCommands[3];
+        left_turn_Stop_threshold = LinuxCommands[4];
+        Kp_right_wall = LinuxCommands[5];
+        Kp_front_wall = LinuxCommands[6];
+        front_turn_velocity = LinuxCommands[7];
+        forward_velocity = LinuxCommands[8];
+        turn_command_saturation = LinuxCommands[9];
         //value11 = LinuxCommands[10];
     }
 
@@ -1244,6 +1330,13 @@ __interrupt void SWI2_MiddlePriority(void)     // RAM_CORRECTABLE_ERROR
                 LADARfront = ladar_data[LADARi].distance_ping;
             }
         }
+        //CH LADARrightrear is the min of dist 1, 2, 3, 4, 5, 6
+        LADARrightrear = 19;
+        for (LADARi = 30; LADARi <= 35; LADARi++){
+            if (ladar_data[LADARi].distance_ping < LADARrightrear){
+                LADARrightrear = ladar_data[LADARi].distance_ping;
+            }
+        }
         LADARxoffset = ROBOTps.x + (LADARps.x*cosf(ROBOTps.theta)-LADARps.y*sinf(ROBOTps.theta - PI/2.0));
         LADARyoffset = ROBOTps.y + (LADARps.x*sinf(ROBOTps.theta)-LADARps.y*cosf(ROBOTps.theta - PI/2.0));
         for (LADARi = 0; LADARi < 228; LADARi++) {
@@ -1265,6 +1358,13 @@ __interrupt void SWI2_MiddlePriority(void)     // RAM_CORRECTABLE_ERROR
         for (LADARi = 111; LADARi <= 115 ; LADARi++) {
             if (ladar_data[LADARi].distance_pong < LADARfront) {
                 LADARfront = ladar_data[LADARi].distance_pong;
+            }
+        }
+        //CH LADARrightrear is the min of dist 1, 2, 3, 4, 5, 6
+        LADARrightrear = 19;
+        for (LADARi = 30; LADARi <= 35; LADARi++){
+            if (ladar_data[LADARi].distance_pong < LADARrightrear){
+                LADARrightrear = ladar_data[LADARi].distance_pong;
             }
         }
         LADARxoffset = ROBOTps.x + (LADARps.x*cosf(ROBOTps.theta)-LADARps.y*sinf(ROBOTps.theta - PI/2.0));
