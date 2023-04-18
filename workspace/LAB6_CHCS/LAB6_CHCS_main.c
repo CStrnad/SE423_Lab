@@ -174,13 +174,13 @@ pose LADARps = {3.5/12.0,0,1};  // 3.5/12 for front mounting, theta is not used 
 float printLinux1 = 0;
 float printLinux2 = 0;
 //CH ex 4 variables inside LinuxCMDApp
-float ref_right_wall = 1.0;
-float left_turn_Start_threshold = 1.3;
-float left_turn_Stop_threshold = 3.2;
-float Kp_right_wall = -2.0;
-float Kp_front_wall = -0.4;
-float front_turn_velocity = 0.4;
-float forward_velocity = 1;
+float ref_right_wall = 1.0; // 1.25
+float left_turn_Start_threshold = 1.3; // 1.9
+float left_turn_Stop_threshold = 3.2; // 4.0
+float Kp_right_wall = -2.0; // -1.2
+float Kp_front_wall = -0.4; // -0.2
+float front_turn_velocity = 0.4; // 0.6
+float forward_velocity = 1; // 1.3
 float turn_command_saturation = 2.0;
 uint16_t right_wall_follow_state = 2;
 
