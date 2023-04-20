@@ -1,7 +1,9 @@
 //#############################################################################
-// FILE:   FinalProjectStarter_main.c
+// FILE:   Lab7_CCAM_main.c
 //
-// TITLE:  Final Project Starter
+// TITLE:  Lab 7 Main
+//
+// INITIALS: CH
 //#############################################################################
 
 // Included Files
@@ -44,7 +46,7 @@ void setF28027EPWM1A(float controleffort);
 int16_t EPwm1A_F28027 = 1500;
 void setF28027EPWM2A(float controleffort);
 int16_t EPwm2A_F28027 = 1500;
-float centroid (float pixels);
+float ballDistance (float pixels);
 
 uint32_t numTimer0calls = 0;
 uint16_t UARTPrint = 0;
@@ -100,6 +102,9 @@ float NextNextLargestRowThreshold2 = 0;
 
 uint32_t numThres1 = 0;
 uint32_t numThres2 = 0;
+
+uint32_t timerTwoTwo = 0;
+uint32_t timerOne = 0;
 
 pose ROBOTps = {0,0,0}; //robot position
 pose LADARps = {3.5/12.0,0,1};  // 3.5/12 for front mounting, theta is not used in this current code
@@ -228,8 +233,13 @@ int16_t dan28027adc1 = 0;
 int16_t dan28027adc2 = 0;
 uint16_t MPU9250ignoreCNT = 0;  //This is ignoring the first few interrupts if ADCC_ISR and start sending to IMU after these first few interrupts.
 
-float centroid (float pixels){
-return (399.5*exp((-pixels)/(0.9403))+96.6);
+//CH  Lab 7 Vars
+float colcentroid = 0;
+float kpvision = -0.05;
+
+//CH cubic calculate ball distance from row pixels function
+float ballDistance (float pixels){
+    return ((-.000003036780167041542*pixels*pixels*pixels) + (0.001725806295381*pixels*pixels) - (0.330903428961700*pixels) + 22.862486399253953);
 }
 void main(void)
 {
@@ -440,7 +450,7 @@ void main(void)
             if (readbuttons() == 0) {
                 UART_printfLine(1,"Vrf:%.2f trn:%.2f",vref,turn);				
 //                UART_printfLine(1,"x:%.2f:y:%.2f:a%.2f",ROBOTps.x,ROBOTps.y,ROBOTps.theta);
-                UART_printfLine(2,"F%.4f R%.4f",LADARfront,LADARrightfront);
+                UART_printfLine(2,"F%.4f S%d",LADARfront,RobotState);
             } else if (readbuttons() == 1) {
                 UART_printfLine(1,"O1A:%.0fC:%.0fR:%.0f",MaxAreaThreshold1,MaxColThreshold1,MaxRowThreshold1);
                 UART_printfLine(2,"P1A:%.0fC:%.0fR:%.0f",MaxAreaThreshold2,MaxColThreshold2,MaxRowThreshold2);
@@ -714,18 +724,22 @@ __interrupt void SWI1_HighestPriority(void)     // EMIF_ERROR
         }
 
         if (NewCAMDataThreshold1 == 1) {
+            //CH Orange
             NewCAMDataThreshold1 = 0;
             MaxAreaThreshold1 = fromCAMvaluesThreshold1[0];
             MaxColThreshold1 = fromCAMvaluesThreshold1[1];
-            MaxRowThreshold1 = centroid(fromCAMvaluesThreshold1[2]);
+            //CH max row threshold changed to distance from robot in ft
+            MaxRowThreshold1 = ballDistance(fromCAMvaluesThreshold1[2]);
 
             NextLargestAreaThreshold1 = fromCAMvaluesThreshold1[3];
             NextLargestColThreshold1 = fromCAMvaluesThreshold1[4];
-            NextLargestRowThreshold1 = centroid(fromCAMvaluesThreshold1[5]);
+            //CH max row threshold changed to distance from robot in ft
+            NextLargestRowThreshold1 = ballDistance(fromCAMvaluesThreshold1[5]);
 
             NextNextLargestAreaThreshold1 = fromCAMvaluesThreshold1[6];
             NextNextLargestColThreshold1 = fromCAMvaluesThreshold1[7];
-            NextNextLargestRowThreshold1 = centroid(fromCAMvaluesThreshold1[8]);
+            //CH max row threshold changed to distance from robot in ft
+            NextNextLargestRowThreshold1 = ballDistance(fromCAMvaluesThreshold1[8]);
 			numThres1++;
             if ((numThres1 % 5) == 0) {
                 // LED4 is GPIO97
@@ -734,18 +748,22 @@ __interrupt void SWI1_HighestPriority(void)     // EMIF_ERROR
         }
 
         if (NewCAMDataThreshold2 == 1) {
+            //CH Purple
             NewCAMDataThreshold2 = 0;
             MaxAreaThreshold2 = fromCAMvaluesThreshold2[0];
             MaxColThreshold2 = fromCAMvaluesThreshold2[1];
-            MaxRowThreshold2 = centroid(fromCAMvaluesThreshold2[2]);
+            //CH max row threshold changed to distance from robot in ft
+            MaxRowThreshold2 = ballDistance(fromCAMvaluesThreshold2[2]);
 
             NextLargestAreaThreshold2 = fromCAMvaluesThreshold2[3];
             NextLargestColThreshold2 = fromCAMvaluesThreshold2[4];
-            NextLargestRowThreshold2 = centroid(fromCAMvaluesThreshold2[5]);
+            //CH max row threshold changed to distance from robot in ft
+            NextLargestRowThreshold2 = ballDistance(fromCAMvaluesThreshold2[5]);
 
             NextNextLargestAreaThreshold2 = fromCAMvaluesThreshold2[6];
             NextNextLargestColThreshold2 = fromCAMvaluesThreshold2[7];
-            NextNextLargestRowThreshold2 = centroid(fromCAMvaluesThreshold2[8]);
+            //CH max row threshold changed to distance from robot in ft
+            NextNextLargestRowThreshold2 = ballDistance(fromCAMvaluesThreshold2[8]);
 			numThres2++;
 			if ((numThres2 % 5) == 0) {
                 // LED5 is GPIO111
@@ -824,12 +842,21 @@ __interrupt void SWI1_HighestPriority(void)     // EMIF_ERROR
         if( xy_control(&vref, &turn, 1.0, ROBOTps.x, ROBOTps.y, robotdest[statePos].x, robotdest[statePos].y, ROBOTps.theta, 0.25, 0.5)) {
             statePos = (statePos+1)%NUMWAYPOINTS;
         }
+
         // state machine
         switch (RobotState) {
         case 1:
-
+            //CH first timer variable for case 1
+            timerOne++;
             // vref and turn are the vref and turn returned from xy_control
-
+            if (timerOne> 2000){
+                if (MaxAreaThreshold1 > 100){
+                    RobotState = 20;
+                }
+                if (MaxAreaThreshold2 > 100){
+                    RobotState = 30;
+                }
+            }
             if (LADARfront < 1.2) {
                 vref = 0.2;
                 checkfronttally++;
@@ -844,6 +871,7 @@ __interrupt void SWI1_HighestPriority(void)     // EMIF_ERROR
 
             break;
         case 10:
+            //CH wall follow state
             if (right_wall_follow_state == 1) {
                 //Left Turn
                 turn = Kp_front_wall*(14.5 - LADARfront);
@@ -875,10 +903,104 @@ __interrupt void SWI1_HighestPriority(void)     // EMIF_ERROR
 
         case 20:
             // put vision code here
+            //CH state 20: follow orange ball
+            colcentroid = MaxColThreshold1 - 160;
+            if ((MaxColThreshold1 == 0) || (MaxAreaThreshold1 < 3)){
+                vref = 0;
+                turn = 0;
+            } else {
+                vref = 0.75;
+                turn = kpvision*(0 - colcentroid);
+            }
+            if (MaxRowThreshold1 < 1.3){
+                RobotState = 22;
+                timerTwoTwo = 0;
+            }
             break;
+        case 22:
+            //CH wait 1 second
+            turn = 0;
+            vref = 0;
+            timerTwoTwo++;
+            if (timerTwoTwo > 1000){
+                timerTwoTwo = 0;
+                RobotState = 24;
+            }
+            break;
+        case 24:
+            //CH move forward slightly for one second
+            turn = 0;
+            vref = 0.5;
+            timerTwoTwo++;
+            if (timerTwoTwo > 1000){
+                timerTwoTwo = 0;
+                RobotState = 26;
+            }
+            break;
+        case 26:
+            //CH wait for 1 second
+            turn = 0;
+            vref = 0;
+            timerTwoTwo++;
+            if (timerTwoTwo > 1000){
+                timerTwoTwo = 0;
+                RobotState = 1;
+                timerOne = 0;
+            }
+            break;
+         case 30:
+            // put vision code here
+             //CH case 30: follow orange ball
+            colcentroid = MaxColThreshold2 - 160;
+            if ((MaxColThreshold2 == 0) || (MaxAreaThreshold2 < 3)){
+                vref = 0;
+                turn = 0;
+            } else {
+                vref = 0.75;
+                turn = kpvision*(0 - colcentroid);
+            }
+            if (MaxRowThreshold2 < 1.3){
+                RobotState = 32;
+                timerTwoTwo = 0;
+            }
+            break;
+        case 32:
+            //CH wait 1 sec: purple time
+            turn = 0;
+            vref = 0;
+            timerTwoTwo++;
+            if (timerTwoTwo > 1000){
+                timerTwoTwo = 0;
+                RobotState = 34;
+            }
+            break;
+        case 34:
+            //CH move forward 1 sec: purple time
+            turn = 0;
+            vref = 0.5;
+            timerTwoTwo++;
+            if (timerTwoTwo > 1000){
+                timerTwoTwo = 0;
+                RobotState = 36;
+            }
+            break;
+        case 36:
+            //CH wait 1 sec: purple time
+            turn = 0;
+            vref = 0;
+            timerTwoTwo++;
+            if (timerTwoTwo > 1000){
+                timerTwoTwo = 0;
+                RobotState = 1;
+                timerOne = 0;
+            }
+            break;
+
+
         default:
             break;
         }
+
 
 
         //Must be called each time into this SWI1 function
