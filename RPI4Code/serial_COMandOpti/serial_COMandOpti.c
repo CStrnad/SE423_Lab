@@ -457,7 +457,9 @@ int main()
                 error("Error AstarApp sem_post: send_mutex");
               }
               //printf("posted\n");
-            }
+            } else {
+				printf("sendto_AstarApp_mutex_sem Not ready!\n");
+			}	
           }
         } else if (receiving_state == 12) { // F28379D is sending 8 float values to LVCOMApp 
           shared_mem_ptr_sendto_LVCOMApp->new_ToLV.data_char[receiving_count] = data;//put data into shared memory
@@ -472,7 +474,9 @@ int main()
                 error("Error serial_COMandOpti sem_post: send_mutex");
               }
               //printf("posted\n");
-            }  
+            } else {
+			  printf("sendto_LVCOMApp_mutex_sem Not ready!\n");
+			}
           }
         }
       }
