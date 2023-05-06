@@ -83,15 +83,15 @@ uint32_t AstarResetMap = 0;
 // For A* Default map with no obstacles just door opening
 char map[176] =      //16x11
 {   '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0',
+    '0', 'x', 'x', 'x', '0', '0', '0', 'x', 'x', 'x', '0',
+    '0', 'x', '0', 'x', '0', '0', '0', 'x', '0', 'x', '0',
+    '0', 'x', 'x', 'x', '0', '0', '0', 'x', 'x', 'x', '0',
     '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0',
     '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0',
     '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0',
-    '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0',
-    '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0',
-    '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0',
-    '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0',
-    '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0',
-    '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0',
+    '0', 'x', 'x', 'x', '0', 'x', 'x', 'x', '0', '0', '0',
+    '0', 'x', '0', 'x', '0', 'x', '0', 'x', '0', '0', '0',
+    '0', 'x', 'x', 'x', '0', 'x', 'x', 'x', '0', '0', '0',
     '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0',
     'x', 'x', 'x', 'x', '0', '0', '0', 'x', 'x', 'x', 'x',
     '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0',
@@ -499,8 +499,9 @@ void main(void)
         if (UARTPrint == 1 ) {
 
             if (readbuttons() == 0) {
-                UART_printfLine(1,"Vrf:%.2f trn:%.2f",vref,turn);
-                UART_printfLine(1,"x:%.2f:y:%.2f:a%.2f",ROBOTps.x,ROBOTps.y,ROBOTps.theta);
+//                UART_printfLine(1,"Vrf:%.2f trn:%.2f",vref,turn);
+//                UART_printfLine(1,"x:%.2f:y:%.2f:a%.2f",ROBOTps.x,ROBOTps.y,ROBOTps.theta);
+                UART_printfLine(1, "wayi: %.0f", wayindex);
             } else if (readbuttons() == 1) {
                 UART_printfLine(1,"O1A:%.0fC:%.0fR:%.0f",MaxAreaThreshold1,MaxColThreshold1,MaxRowThreshold1);
                 UART_printfLine(2,"P1A:%.0fC:%.0fR:%.0f",MaxAreaThreshold2,MaxColThreshold2,MaxRowThreshold2);
@@ -947,7 +948,6 @@ __interrupt void SWI1_HighestPriority(void)     // EMIF_ERROR
                 if (statePos == numpts-1) {
                     //wayindex
                     wayindex++;
-
                 } else {
                     statePos = (statePos+1);
                 }
