@@ -41,6 +41,39 @@ __interrupt void SWI3_LowestPriority(void);
 __interrupt void ADCC_ISR(void);
 __interrupt void SPIB_isr(void);
 
+
+void setEPWM3A_RCServo(float angle);
+void setEPWM3B_RCServo(float angle);
+float ballDistance (float pixels);
+
+float ballDistance (float pixels){
+    return ((-.000003036780167041542*pixels*pixels*pixels) + (0.001725806295381*pixels*pixels) - (0.330903428961700*pixels) + 22.862486399253953);
+}
+float colcentroid = 0;
+float kpvision = -0.05;
+
+uint32_t orangeCount = 0;
+uint32_t purpleCount = 0;
+
+int16_t orangex[3];
+int16_t orangey[3];
+int16_t purplex[3];
+int16_t purpley[3];
+
+uint32_t timerTwoTwo = 0;
+uint32_t timerOne = 0;
+
+//void setEPWM3A_RCServo(float angle){
+//    if (angle > 90){
+//        angle = 90.0;
+//    }
+//    if(angle < -90){
+//        angle = -90.0;
+//    }
+//
+//    EPwm8Regs.CMPA.bit.CMPA = ((angle + 90)*27.77)+2500;
+//}
+
 void setF28027EPWM1A(float controleffort);
 int16_t EPwm1A_F28027 = 1500;
 void setF28027EPWM2A(float controleffort);
@@ -589,9 +622,9 @@ void main(void)
         if (UARTPrint == 1 ) {
 
             if (readbuttons() == 0) {
-//                UART_printfLine(1,"Vrf:%.2f trn:%.2f",vref,turn);
-//                UART_printfLine(1,"x:%.2f:y:%.2f:a%.2f",ROBOTps.x,ROBOTps.y,ROBOTps.theta);
-                UART_printfLine(1, "wayi: %.0f", wayindex);
+                UART_printfLine(1,"OC:%d PC:%d",orangeCount,purpleCount);
+                //UART_printfLine(1,"x:%.2f:y:%.2f:a%.2f",ROBOTps.x,ROBOTps.y,ROBOTps.theta);
+                //UART_printfLine(1, "wayi: %.0f", wayindex);
             } else if (readbuttons() == 1) {
                 UART_printfLine(1,"O1A:%.0fC:%.0fR:%.0f",MaxAreaThreshold1,MaxColThreshold1,MaxRowThreshold1);
                 UART_printfLine(2,"P1A:%.0fC:%.0fR:%.0f",MaxAreaThreshold2,MaxColThreshold2,MaxRowThreshold2);
@@ -877,15 +910,15 @@ __interrupt void SWI1_HighestPriority(void)     // EMIF_ERROR
             NewCAMDataThreshold1 = 0;
             MaxAreaThreshold1 = fromCAMvaluesThreshold1[0];
             MaxColThreshold1 = fromCAMvaluesThreshold1[1];
-            MaxRowThreshold1 = fromCAMvaluesThreshold1[2];
+            MaxRowThreshold1 = ballDistance(fromCAMvaluesThreshold1[2]);
 
             NextLargestAreaThreshold1 = fromCAMvaluesThreshold1[3];
             NextLargestColThreshold1 = fromCAMvaluesThreshold1[4];
-            NextLargestRowThreshold1 = fromCAMvaluesThreshold1[5];
+            NextLargestRowThreshold1 = ballDistance(fromCAMvaluesThreshold1[5]);
 
             NextNextLargestAreaThreshold1 = fromCAMvaluesThreshold1[6];
             NextNextLargestColThreshold1 = fromCAMvaluesThreshold1[7];
-            NextNextLargestRowThreshold1 = fromCAMvaluesThreshold1[8];
+            NextNextLargestRowThreshold1 = ballDistance(fromCAMvaluesThreshold1[8]);
 			numThres1++;
             if ((numThres1 % 5) == 0) {
                 // LED4 is GPIO97
@@ -897,15 +930,16 @@ __interrupt void SWI1_HighestPriority(void)     // EMIF_ERROR
             NewCAMDataThreshold2 = 0;
             MaxAreaThreshold2 = fromCAMvaluesThreshold2[0];
             MaxColThreshold2 = fromCAMvaluesThreshold2[1];
-            MaxRowThreshold2 = fromCAMvaluesThreshold2[2];
+            //CH max row threshold changed to distance from robot in ft
+            MaxRowThreshold2 = ballDistance(fromCAMvaluesThreshold2[2]);
 
             NextLargestAreaThreshold2 = fromCAMvaluesThreshold2[3];
             NextLargestColThreshold2 = fromCAMvaluesThreshold2[4];
-            NextLargestRowThreshold2 = fromCAMvaluesThreshold2[5];
+            NextLargestRowThreshold2 = ballDistance(fromCAMvaluesThreshold2[5]);
 
             NextNextLargestAreaThreshold2 = fromCAMvaluesThreshold2[6];
             NextNextLargestColThreshold2 = fromCAMvaluesThreshold2[7];
-            NextNextLargestRowThreshold2 = fromCAMvaluesThreshold2[8];
+            NextNextLargestRowThreshold2 = ballDistance(fromCAMvaluesThreshold2[8]);
 			numThres2++;
 			if ((numThres2 % 5) == 0) {
                 // LED5 is GPIO111
@@ -1053,17 +1087,27 @@ __interrupt void SWI1_HighestPriority(void)     // EMIF_ERROR
             }
         }
         // state machine
-        RobotState = 1;
+        //RobotState = 1;
         switch (RobotState) {
         case 1:
 
             // vref and turn are the vref and turn returned from xy_control
+            timerOne++;
+            // vref and turn are the vref and turn returned from xy_control
+            if (timerOne> 2000){
+                if (MaxAreaThreshold1 > 70){
+                    RobotState = 20;
+                }
+                if (MaxAreaThreshold2 > 70){
+                    RobotState = 30;
+                }
+            }
 
             if (LADARfront < 1.2) {
                 vref = 0.2;
                 checkfronttally++;
                 if (checkfronttally > 310) { // check if LADARfront < 1.2 for 310ms or 3 LADAR samples
-                    RobotState = 10; // Wall follow
+                    //RobotState = 10; // Wall follow
                     WallFollowtime = 0;
                     right_wall_follow_state = 1;
                 }
@@ -1104,7 +1148,113 @@ __interrupt void SWI1_HighestPriority(void)     // EMIF_ERROR
 
         case 20:
             // put vision code here
+            colcentroid = MaxColThreshold1 - 160;
+            if ((MaxColThreshold1 == 0) || (MaxAreaThreshold1 < 3)){
+                vref = 0;
+                turn = 0;
+            } else {
+                vref = 0.75;
+                turn = kpvision*(0 - colcentroid);
+            }
+            if (MaxRowThreshold1 < 1.4){
+                RobotState = 22;
+                timerTwoTwo = 0;
+            }
+
             break;
+
+        case 22:
+            //CH wait 1 second
+            turn = 0;
+            vref = 0;
+            timerTwoTwo++;
+            if (timerTwoTwo > 1000){
+                timerTwoTwo = 0;
+                setEPWM3A_RCServo(-45.0);
+                RobotState = 24;
+            }
+            break;
+        case 24:
+            //CH move forward slightly for one second
+            turn = 0;
+            vref = 0.8;
+            timerTwoTwo++;
+            if (timerTwoTwo > 1000){
+                timerTwoTwo = 0;
+                RobotState = 26;
+            }
+            break;
+        case 26:
+            //CH wait for 1 second
+            turn = 0;
+            vref = 0;
+            setEPWM3A_RCServo(15);
+            orangeCount++;
+            timerTwoTwo++;
+            if (timerTwoTwo > 1000){
+                timerTwoTwo = 0;
+                orangex[orangeCount] = ROBOTps.x;
+                orangey[orangeCount] = ROBOTps.y;
+                RobotState = 1;
+                timerOne = 0;
+            }
+            StartAstar = 1;
+            break;
+         case 30:
+            // put vision code here
+             //CH case 30: follow orange ball
+            colcentroid = MaxColThreshold2 - 160;
+            if ((MaxColThreshold2 == 0) || (MaxAreaThreshold2 < 3)){
+                vref = 0;
+                turn = 0;
+            } else {
+                vref = 0.75;
+                turn = kpvision*(0 - colcentroid);
+            }
+            if (MaxRowThreshold2 < 1.4){
+                RobotState = 32;
+                timerTwoTwo = 0;
+            }
+            break;
+        case 32:
+            //CH wait 1 sec: purple time
+            turn = 0;
+            vref = 0;
+
+            timerTwoTwo++;
+            if (timerTwoTwo > 1200){
+                timerTwoTwo = 0;
+                setEPWM3A_RCServo(-45.0);
+                RobotState = 34;
+            }
+            break;
+        case 34:
+            //CH move forward 1 sec: purple time
+            turn = 0;
+            vref = 0.8;
+            timerTwoTwo++;
+            if (timerTwoTwo > 1200){
+                timerTwoTwo = 0;
+                RobotState = 36;
+            }
+            break;
+        case 36:
+            //CH wait 1 sec: purple time
+            turn = 0;
+            vref = 0;
+            setEPWM3A_RCServo(15.0);
+            timerTwoTwo++;
+            purpleCount++;
+            if (timerTwoTwo > 1000){
+                timerTwoTwo = 0;
+                purplex[purpleCount] = ROBOTps.x;
+                purpley[purpleCount] = ROBOTps.y;
+                RobotState = 1;
+                timerOne = 0;
+            }
+            StartAstar = 1;
+            break;
+
         default:
             break;
         }
