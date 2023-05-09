@@ -57,6 +57,77 @@ typedef struct pose_obstacle{
     char mapCondensed[22];
 } pose_obstacle;
 
+//CH Obstacle struct
+typedef struct obsttype{
+    int16_t x; // x position of center of edge in A* coords
+    int16_t y; // y position of center of edge in A* coords
+    int16_t imap1; // map index value of left/topmost edge point
+    int16_t imap2; // map index value of center edge point
+    int16_t imap3; // map index value of right/bottom edge point
+    int16_t found; // 0 or 1 depending on if edge has been added to map
+    int16_t sentToLV; // 0 or 1 depending on if edge was sent to LabView
+    int16_t tally; // number of times LADAR has detected current edge
+} obsttype;
+
+obsttype obst[57] =
+{                                   //h - horizontal edge, v - vertical edge
+ {-5, 10, 400, 11, 12, 0, 0, 0},    //h
+ {-3, 10, 12, 13, 14, 0, 0, 0},     //h
+ {-1, 10, 14, 15, 16, 0, 0, 0},     //h
+ {1, 10, 16, 17, 18, 0, 0, 0},      //h
+ {3, 10, 18, 19, 20, 0, 0, 0},      //h
+ {5, 10, 20, 21, 400, 0, 0, 0},     //h
+ {-4, 9, 12, 23, 34, 0, 0, 0},      //v
+ {-2, 9, 14, 25, 36, 0, 0, 0},      //v
+ {0, 9, 16, 27, 38, 0, 0, 0},       //v
+ {2, 9, 18, 29, 40, 0, 0, 0},       //v
+ {4, 9, 20, 31, 42, 0, 0, 0},       //v
+ {-5, 8, 400, 33, 34, 0, 0, 0},     //h
+ {-3, 8, 34, 35, 36, 0, 0, 0},      //h
+ {-1, 8, 36, 37, 38, 0, 0, 0},      //h
+ {1, 8, 38, 39, 40, 0, 0, 0},       //h
+ {3, 8, 40, 41, 42, 0, 0, 0},       //h
+ {5, 8, 42, 43, 400, 0, 0, 0},      //h
+ {-4, 7, 34, 45, 56, 0, 0, 0},      //v
+ {-2, 7, 36, 47, 58, 0, 0, 0},      //v
+ {0, 7, 38, 49, 59, 0, 0, 0},       //v
+ {2, 7, 40, 51, 62, 0, 0, 0},       //v
+ {4, 7, 42, 53, 64, 0, 0, 0},       //v
+ {-5, 6, 400, 55, 56, 0, 0, 0},     //h
+ {-3, 6, 56, 57, 58, 0, 0, 0},      //h
+ {-1, 6, 58, 59, 60, 0, 0, 0},      //h
+ {1, 6, 60, 61, 62, 0, 0, 0},       //h
+ {3, 6, 62, 63, 64, 0, 0, 0},       //h
+ {5, 6, 64, 65, 400, 0, 0, 0},      //h
+ {-4, 5, 56, 67, 78, 0, 0, 0},      //v
+ {-2, 5, 58, 69, 80, 0, 0, 0},      //v
+ {0, 5, 60, 71, 82, 0, 0, 0},       //v
+ {2, 5, 62, 73, 84, 0, 0, 0},       //v
+ {4, 5, 64, 75, 86, 0, 0, 0},       //v
+ {-5, 4, 400, 77, 78, 0, 0, 0},     //h
+ {-3, 4, 78, 79, 80, 0, 0, 0},      //h
+ {-1, 4, 80, 81, 82, 0, 0, 0},      //h
+ {1, 4, 82, 83, 84, 0, 0, 0},       //h
+ {3, 4, 84, 85, 86, 0, 0, 0},       //h
+ {5, 4, 86, 87, 400, 0, 0, 0},      //h
+ {-4, 3, 78, 89, 100, 0, 0, 0},     //v
+ {-2, 3, 80, 91, 102, 0, 0, 0},     //v
+ {0, 3, 82, 93, 104, 0, 0, 0},      //v
+ {2, 3, 84, 95, 106, 0, 0, 0},      //v
+ {4, 3, 86, 97, 108, 0, 0, 0},      //v
+ {-5, 2, 400, 99, 100, 0, 0, 0},    //h
+ {-3, 2, 100, 101, 102, 0, 0, 0},   //h
+ {-1, 2, 102, 103, 104, 0, 0, 0},   //h
+ {1, 2, 104, 105, 106, 0, 0, 0},    //h
+ {3, 2, 106, 107, 108, 0, 0, 0},    //h
+ {5, 2, 108, 109, 400, 0, 0, 0},    //h
+ {-4, 1, 100, 111, 400, 0, 0, 0},   //v
+ {-2, 1, 102, 113, 400, 0, 0, 0},   //v
+ {0, 1, 104, 115, 400, 0, 0, 0},    //v
+ {2, 1, 106, 117, 400, 0, 0, 0},    //v
+ {4, 1, 108, 119, 400, 0, 0, 0}     //v
+};
+
 //union of char and pose_obstacle for reading data
 typedef union {
     char obs_data_char[28];  // char is 16bits on F28379D
@@ -85,13 +156,13 @@ char map[176] =      //16x11
 {   '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0',
     '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0',
     '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0',
-    'x', 'x', '0', '0', '0', '0', '0', '0', '0', '0', '0',
-    '0', 'x', '0', '0', '0', '0', '0', '0', '0', '0', '0',
-    'x', 'x', '0', '0', '0', '0', '0', '0', '0', '0', '0',
     '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0',
-    '0', 'x', 'x', 'x', '0', '0', '0', 'x', 'x', 'x', '0',
-    '0', 'x', '0', 'x', '0', '0', '0', 'x', '0', 'x', '0',
-    '0', 'x', 'x', 'x', '0', '0', '0', 'x', 'x', 'x', '0',
+    '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0',
+    '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0',
+    '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0',
+    '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0',
+    '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0',
+    '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0',
     '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0',
     'x', 'x', 'x', 'x', '0', '0', '0', 'x', 'x', 'x', 'x',
     '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0',
@@ -116,6 +187,32 @@ char mapstart[176] =      //16x11
     '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0',
     '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0',
     '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0'   };
+
+//typedef struct tallytype{
+//    int16_t tally;
+//    int16_t found;
+//    int16_t senttoLV;
+//} pose_obstacle;
+
+//tallytype maptally[176] =      //16x11
+//{   {99,0,0}, {99,0,0}, '0', '0', '0', '0', '0', '0', '0', '0', '0',
+//    '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0',
+//    '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0',
+//    '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0',
+//    '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0',
+//    '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0',
+//    '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0',
+//    '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0',
+//    '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0',
+//    '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0',
+//    '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0',
+//    'x', 'x', 'x', 'x', '0', '0', '0', 'x', 'x', 'x', 'x',
+//    '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0',
+//    '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0',
+//    '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0',
+//    '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0'   };
+
+
 
 uint32_t numTimer0calls = 0;
 uint16_t UARTPrint = 0;
@@ -879,6 +976,12 @@ __interrupt void SWI1_HighestPriority(void)     // EMIF_ERROR
                     for (i=0;i<176;i++) {
                         map[i] = mapstart[i];
                     }
+
+                    for (i=0;i<57;i++) {
+                        obst[i].tally = 0;
+                        obst[i].found = 0;
+                    }
+
                     StartAstar = 1;
                 }
             }
@@ -940,8 +1043,10 @@ __interrupt void SWI1_HighestPriority(void)     // EMIF_ERROR
             if (AstarRunning == 0) {
                 if (statePos == numpts-1) {
                     //wayindex
-                    wayindex++;
-                    StartAstar = 1;
+                    if (wayindex < NUMWAYPOINTS - 1){
+                        wayindex++;
+                        StartAstar = 1;
+                    }
                 } else {
                     statePos = (statePos+1);
                 }
@@ -1019,6 +1124,8 @@ __interrupt void SWI1_HighestPriority(void)     // EMIF_ERROR
         RightWheel_1 = RightWheel;
 
         if((timecount%250) == 0) {
+
+
             DataToLabView.floatData[0] = ROBOTps.x;
             DataToLabView.floatData[1] = ROBOTps.y;
             DataToLabView.floatData[2] = ROBOTps.theta;
@@ -1177,6 +1284,43 @@ __interrupt void SWI2_MiddlePriority(void)     // RAM_CORRECTABLE_ERROR
             ladar_pts[LADARi].x = LADARxoffset + ladar_data[LADARi].distance_ping*cosf(ladar_data[LADARi].angle + ROBOTps.theta);
             ladar_pts[LADARi].y = LADARyoffset + ladar_data[LADARi].distance_ping*sinf(ladar_data[LADARi].angle + ROBOTps.theta);
 
+            //int16_t tmpStartAstar = 0;
+            //            if ((LADARi == 25) || (LADARi == 55) || (LADARi == 113) || (LADARi == 175) || (LADARi == 210)) {
+            //
+            //                int16_t tmprow = 11 - round(ladar_pts[LADARi].y);
+            //                int16_t tmpcol = 5 + round(ladar_pts[LADARi].x);
+            //                if (ladar_data[LADARi].distance_ping < 4) {
+            //                    if (tmprow >= 0 && tmprow <= 15 && tmpcol >= 0 && tmpcol <= 10 && maptally[tmprow*11 + tmpcol].tally < 5) {
+            //                        maptally[tmprow*11 + tmpcol].tally++;
+            //                        if (maptally[tmprow*11 + tmpcol].tally >= 5) {
+            //                            map[tmprow*11 + tmpcol] = 'x';
+            //                            tmpStartAstar = 1;
+            //                            maptally[tmprow*11 + tmpcol].found = 1;
+            //                        }
+            //                    }
+            //
+            //                }
+            //                StartAstar = tmpStartAstar;
+
+            if ( ((LADARi == 25) || (LADARi == 55) || (LADARi == 113) || (LADARi == 175) || (LADARi == 210)) && ladar_data[LADARi].distance_ping < 4) {
+                for (int16_t i = 0; i < 57; i++) {
+                    if ( ( ((ladar_pts[LADARi].x-obst[i].x)*(ladar_pts[LADARi].x-obst[i].x) + (ladar_pts[LADARi].y-obst[i].y)*(ladar_pts[LADARi].y-obst[i].y)) < 0.25 ) && obst[i].found == 0){
+                        obst[i].tally++;
+                        if (obst[i].tally > 3) {
+                            obst[i].found = 1;
+                            if (obst[i].imap1 < 176) {
+                                map[obst[i].imap1] = 'x';
+                            }
+                            map[obst[i].imap2] = 'x';
+                            if (obst[i].imap3 < 176) {
+                                map[obst[i].imap3] = 'x';
+                            }
+
+                            StartAstar = 1;
+                        }
+                    }
+                }
+            }
         }
     } else if (LADARpingpong == 0) {
         // LADARrightfront is the min of dist 52, 53, 54, 55, 56
@@ -1200,6 +1344,25 @@ __interrupt void SWI2_MiddlePriority(void)     // RAM_CORRECTABLE_ERROR
             ladar_pts[LADARi].x = LADARxoffset + ladar_data[LADARi].distance_pong*cosf(ladar_data[LADARi].angle + ROBOTps.theta);
             ladar_pts[LADARi].y = LADARyoffset + ladar_data[LADARi].distance_pong*sinf(ladar_data[LADARi].angle + ROBOTps.theta);
 
+            if ( ((LADARi == 25) || (LADARi == 55) || (LADARi == 113) || (LADARi == 175) || (LADARi == 210)) && ladar_data[LADARi].distance_pong < 4) {
+                for (int16_t i = 0; i < 57; i++) {
+                    if ( ( ((ladar_pts[LADARi].x-obst[i].x)*(ladar_pts[LADARi].x-obst[i].x) + (ladar_pts[LADARi].y-obst[i].y)*(ladar_pts[LADARi].y-obst[i].y)) < 0.25 ) && obst[i].found == 0){
+                        obst[i].tally++;
+                        if (obst[i].tally > 3) {
+                            obst[i].found = 1;
+                            if (obst[i].imap1 < 176) {
+                                map[obst[i].imap1] = 'x';
+                            }
+                            map[obst[i].imap2] = 'x';
+                            if (obst[i].imap3 < 176) {
+                                map[obst[i].imap3] = 'x';
+                            }
+
+                            StartAstar = 1;
+                        }
+                    }
+                }
+            }
         }
     }
 
