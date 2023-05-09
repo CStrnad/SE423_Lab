@@ -339,7 +339,7 @@ int astar(int rowStart, int colStart, int rowEnd, int colEnd)
 		//2.  pop q (which is currently the minimum) off which queue? 
 		// Choose one of these two lines of code
 		// IF the Openset
-		//pop_(&openSet, nodeTrack, mapColSize);
+		pop_(&openSet, nodeTrack, mapColSize);
 		// IF closedSet 
 		//pop(&closedSet, nodeTrack, mapColSize);
 		
@@ -361,8 +361,8 @@ int astar(int rowStart, int colStart, int rowEnd, int colEnd)
 			if((next.row == rowEnd) && (next.col == colEnd))		//if neighbor is the goal, found the end, so stop the search
 			{
 				// 5.  set current neighbor's parents.  Set parentRow to q's row.  Set parentCol to q's col since q is the parent of this neighbor
-				(nodeTrack[next.row*mapColSize+next.col]).parentRow = ?;	 //set goal node's parent position to current position
-				(nodeTrack[next.row*mapColSize+next.col]).parentCol = ?;
+				(nodeTrack[next.row*mapColSize+next.col]).parentRow = minDistNode.row;	 //set goal node's parent position to current position
+				(nodeTrack[next.row*mapColSize+next.col]).parentCol = minDistNode.col;
 				goalFound = 't';
 				break;
 			}
@@ -370,18 +370,18 @@ int astar(int rowStart, int colStart, int rowEnd, int colEnd)
 			/*neighbor.distTravelFromStart (g) = q.distTravelFromStart + distance between neighbor and q which is always 1 when search just top left bottom right*/
 			// 6.  Set this neighbor's distance traveled from the start.  Remember you have the variable "currDist" that is the distance of q to Start
 			//need to consider diagonal distance now
-			next.distTravelFromStart = ?;
+			next.distTravelFromStart = currDist + 1;
 			// printf("next.distTravelFromStart %f\n", next.distTravelFromStart);
 			
 			/*neighbor.distToGoal (h) = distance from goal to neighbor, heuristic function	(estimated distance to goal)*/
 			// 7.  Pass the correct parameters to "heuristic" to calculate the distance this neighbor is from the goal.
 			//  Remember that we have the variables rowEnd and colEnd which are the grid coordinates of the goal 
-			next.distToGoal = heuristic(?, ?, ?, ?);
+			next.distToGoal = heuristic(next.row, next.col, rowEnd, colEnd);
 			
 			/*neighbor.totalDist (f) = neighbor.distTravelFromStart + neighbor.distToGoal
 				(total estimated distance as sum of distance traveled from start and distance to goal)*/
 			// 8.  Find f, (totalDist) for this neighbor
-			next.totalDist = ?;
+			next.totalDist = next.distTravelFromStart + next.distToGoal;
 			
 			
 			// 9.  Just comments for this question.
@@ -421,8 +421,8 @@ int astar(int rowStart, int colStart, int rowEnd, int colEnd)
 				//10.  push this neighbor on which queue? 
 				// Choose one of these two lines of code
 				// IF openSet
-				//push_(next, &openSet, nodeTrack, mapColSize);
-				//printf("Push to OpenList, Row=%d,Col=%d,g=%d,h=%d,f=%d\n",next.row,next.col,next.distTravelFromStart,next.distToGoal,next.totalDist);
+				push_(next, &openSet, nodeTrack, mapColSize);
+				printf("Push to OpenList, Row=%d,Col=%d,g=%d,h=%d,f=%d\n",next.row,next.col,next.distTravelFromStart,next.distToGoal,next.totalDist);
 				// IF closedSet
 				//push(next, &closedSet, nodeTrack, mapColSize);
 				
@@ -436,15 +436,15 @@ int astar(int rowStart, int colStart, int rowEnd, int colEnd)
 		// IF openSet
 		//push(minDistNode, &openSet, nodeTrack, mapColSize);
 		// IF closedSet
-		//push_(minDistNode, &closedSet, nodeTrack, mapColSize);
-		//printf("Push to ClosedList, Row=%d,Col=%d\n",minDistNode.row,minDistNode.col);
+		push_(minDistNode, &closedSet, nodeTrack, mapColSize);
+		printf("Push to ClosedList, Row=%d,Col=%d\n",minDistNode.row,minDistNode.col);
 	}  /*end while loop*/
 
 	/*if a path was found from the start to the goal, then reconstruct the path*/
 	if(goalFound == 't') {
 		// 12.  Pass the correct varaibles to "reconstructPath" in order for it to fill in the global arrays pathRow, pathCol
 		//     and integer pathLen.  Note that the path is in reverse order in pathRow and pathCol.
-		reconstructPath(?, ?, ?);
+		reconstructPath(rowEnd, colEnd, nodeTrack);
 		return 1;
 	}
 	return 0;
