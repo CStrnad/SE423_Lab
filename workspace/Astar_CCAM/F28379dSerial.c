@@ -96,9 +96,9 @@ uint16_t init_serialSCIA(serialSCIA_t *s, uint32_t baud)
         
         init_bufferSCIA(&s->TX);
 
-        GPIO_SetupPinMux(43, GPIO_MUX_CPU1, 15);
+        GPIO_SetupPinMux(43, GPIO_MUX_CPU1, 0);
         GPIO_SetupPinOptions(43, GPIO_INPUT, GPIO_PULLUP);
-        GPIO_SetupPinMux(42, GPIO_MUX_CPU1, 15);
+        GPIO_SetupPinMux(42, GPIO_MUX_CPU1, 0);
         GPIO_SetupPinOptions(42, GPIO_OUTPUT, GPIO_PUSHPULL);
 
     } else {
@@ -154,6 +154,11 @@ uint16_t init_serialSCIA(serialSCIA_t *s, uint32_t baud)
         PieCtrlRegs.PIEIER9.bit.INTx2 = 1;
         IER |= (M_INT9);
         PieCtrlRegs.PIEACK.all = (PIEACK_GROUP9);
+        GPIO_SetupPinMux(43, GPIO_MUX_CPU1, 15);
+        GPIO_SetupPinOptions(43, GPIO_INPUT, GPIO_PULLUP);
+        GPIO_SetupPinMux(42, GPIO_MUX_CPU1, 15);
+        GPIO_SetupPinOptions(42, GPIO_OUTPUT, GPIO_PUSHPULL);
+
 
     }
 
@@ -211,9 +216,9 @@ uint16_t init_serialSCIB(serialSCIB_t *s, uint32_t baud)
         
         init_bufferSCIB(&s->TX);
 
-        GPIO_SetupPinMux(15, GPIO_MUX_CPU1, 2);
+        GPIO_SetupPinMux(15, GPIO_MUX_CPU1, 0);
         GPIO_SetupPinOptions(15, GPIO_INPUT, GPIO_PULLUP);
-        GPIO_SetupPinMux(14, GPIO_MUX_CPU1, 2);
+        GPIO_SetupPinMux(14, GPIO_MUX_CPU1, 0);
         GPIO_SetupPinOptions(14, GPIO_OUTPUT, GPIO_PUSHPULL);
 
 
@@ -270,6 +275,11 @@ uint16_t init_serialSCIB(serialSCIB_t *s, uint32_t baud)
         PieCtrlRegs.PIEIER9.bit.INTx4 = 1;
         IER |= (M_INT9);
         PieCtrlRegs.PIEACK.all = (PIEACK_GROUP9);
+        GPIO_SetupPinMux(15, GPIO_MUX_CPU1, 2);
+        GPIO_SetupPinOptions(15, GPIO_INPUT, GPIO_PULLUP);
+        GPIO_SetupPinMux(14, GPIO_MUX_CPU1, 2);
+        GPIO_SetupPinOptions(14, GPIO_OUTPUT, GPIO_PUSHPULL);
+
     }
 
     return 0;
@@ -326,9 +336,9 @@ uint16_t init_serialSCIC(serialSCIC_t *s, uint32_t baud)
         s->sci = sci;
         
         init_bufferSCIC(&s->TX);
-        GPIO_SetupPinMux(139, GPIO_MUX_CPU1, 6);
+        GPIO_SetupPinMux(139, GPIO_MUX_CPU1, 0);
         GPIO_SetupPinOptions(139, GPIO_INPUT, GPIO_PULLUP);
-        GPIO_SetupPinMux(56, GPIO_MUX_CPU1, 6);
+        GPIO_SetupPinMux(56, GPIO_MUX_CPU1, 0);
         GPIO_SetupPinOptions(56, GPIO_OUTPUT, GPIO_PUSHPULL);
 
     } else {
@@ -384,6 +394,10 @@ uint16_t init_serialSCIC(serialSCIC_t *s, uint32_t baud)
         PieCtrlRegs.PIEIER8.bit.INTx6 = 1;
         PieCtrlRegs.PIEACK.all = (PIEACK_GROUP8);
         IER |= (M_INT8);
+        GPIO_SetupPinMux(139, GPIO_MUX_CPU1, 6);
+        GPIO_SetupPinOptions(139, GPIO_INPUT, GPIO_PULLUP);
+        GPIO_SetupPinMux(56, GPIO_MUX_CPU1, 6);
+        GPIO_SetupPinOptions(56, GPIO_OUTPUT, GPIO_PUSHPULL);
 
     } 
 
@@ -441,9 +455,9 @@ uint16_t init_serialSCID(serialSCID_t *s, uint32_t baud)
         s->sci = sci;
         
         init_bufferSCID(&s->TX);
-        GPIO_SetupPinMux(105, GPIO_MUX_CPU1, 6);
+        GPIO_SetupPinMux(105, GPIO_MUX_CPU1, 0);
         GPIO_SetupPinOptions(105, GPIO_INPUT, GPIO_PULLUP);
-        GPIO_SetupPinMux(104, GPIO_MUX_CPU1, 6);
+        GPIO_SetupPinMux(104, GPIO_MUX_CPU1, 0);
         GPIO_SetupPinOptions(104, GPIO_OUTPUT, GPIO_PUSHPULL);
     }
     else {
@@ -499,6 +513,10 @@ uint16_t init_serialSCID(serialSCID_t *s, uint32_t baud)
         PieCtrlRegs.PIEIER8.bit.INTx8 = 1;
         PieCtrlRegs.PIEACK.all = (PIEACK_GROUP8);
         IER |= (M_INT8);
+        GPIO_SetupPinMux(105, GPIO_MUX_CPU1, 6);
+        GPIO_SetupPinOptions(105, GPIO_INPUT, GPIO_PULLUP);
+        GPIO_SetupPinMux(104, GPIO_MUX_CPU1, 6);
+        GPIO_SetupPinOptions(104, GPIO_OUTPUT, GPIO_PUSHPULL);
     }
 
     return 0;

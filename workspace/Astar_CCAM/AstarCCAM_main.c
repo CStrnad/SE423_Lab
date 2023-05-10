@@ -55,10 +55,7 @@ float kpvision = -0.05;
 uint32_t orangeCount = 0;
 uint32_t purpleCount = 0;
 
-int16_t orangex[3];
-int16_t orangey[3];
-int16_t purplex[3];
-int16_t purpley[3];
+
 
 uint32_t timerTwoTwo = 0;
 uint32_t timerOne = 0;
@@ -174,6 +171,8 @@ int16_t robotdestSize = 39;
 int16_t numpts = 0;
 int16_t pathRow[50];  // made 50 long but only needs to be 40.
 int16_t pathCol[50];
+
+int16_t balldrop = 0;
 
 int16_t StartAstar = 0;
 int16_t AstarDelay = 0;
@@ -364,6 +363,13 @@ int16_t adcc2result = 0;
 int16_t adcc3result = 0;
 int16_t adcc4result = 0;
 int16_t adcc5result = 0;
+float currentx1 = 0;
+float currenty1 = 0;
+float currentx2 = 0;
+float currenty2 = 0;
+int16_t currentLVstate = 0;
+int16_t currentcolor = 0;
+
 float adcC2Volt = 0.0;
 float adcC3Volt = 0.0;
 float adcC4Volt = 0.0;
@@ -399,6 +405,9 @@ float accelz = 0;
 float gyrox = 0;
 float gyroy = 0;
 float gyroz = 0;
+
+int16_t timerFourOne = 0;
+int16_t timerReverse = 0;
 
 // Needed global Variables
 float accelx_offset = 0;
@@ -514,10 +523,8 @@ void main(void)
 
     DELAY_US(1000000);  // Delay 1 second giving Lidar Time to power on after system power on
 
-    init_serialSCIA(&SerialA,115200);
     init_serialSCIB(&SerialB,19200);
     init_serialSCIC(&SerialC,19200);
-	init_serialSCID(&SerialD,2083332);
 
     for (LADARi = 0; LADARi < 228; LADARi++) {
         ladar_data[LADARi].angle = ((3*LADARi+44)*0.3515625-135)*0.01745329; //0.017453292519943 is pi/180, multiplication is faster; 0.3515625 is 360/1024
@@ -590,6 +597,9 @@ void main(void)
     SpibRegs.SPIFFRX.bit.RXFFINTCLR=1; // Clear Interrupt flag
     PieCtrlRegs.PIEACK.all = PIEACK_GROUP6;
     EPwm4Regs.TBCTL.bit.CTRMODE = 0; //unfreeze, and enter up count mode
+
+    init_serialSCIA(&SerialA,115200);
+    init_serialSCID(&SerialD,2083332);
 
     // Enable global Interrupts and higher priority real-time debug events
     EINT;  // Enable Global interrupt INTM
@@ -1079,6 +1089,9 @@ __interrupt void SWI1_HighestPriority(void)     // EMIF_ERROR
                     //wayindex
                     if (wayindex < NUMWAYPOINTS - 1){
                         wayindex++;
+                        if (wayindex == NUMWAYPOINTS - 2) {
+                            balldrop = 1;
+                        }
                         StartAstar = 1;
                     }
                 } else {
@@ -1086,6 +1099,7 @@ __interrupt void SWI1_HighestPriority(void)     // EMIF_ERROR
                 }
             }
         }
+        vref = vref*1.5;
         // state machine
         //RobotState = 1;
         switch (RobotState) {
@@ -1093,13 +1107,25 @@ __interrupt void SWI1_HighestPriority(void)     // EMIF_ERROR
 
             // vref and turn are the vref and turn returned from xy_control
             timerOne++;
+            timerFourOne = 0;
+            timerReverse = 0;
             // vref and turn are the vref and turn returned from xy_control
             if (timerOne> 2000){
-                if (MaxAreaThreshold1 > 70){
+                if ((MaxAreaThreshold1 > 70) && (ROBOTps.y > 0)){
                     RobotState = 20;
                 }
-                if (MaxAreaThreshold2 > 70){
+                if ((MaxAreaThreshold2 > 70) && (ROBOTps.y > 0)){
                     RobotState = 30;
+                }
+            }
+            if (balldrop == 1){
+                if (sqrt((((ROBOTps.x - waypoints[5].x)*(ROBOTps.x - waypoints[5].x)) + ((ROBOTps.y - waypoints[5].y)*(ROBOTps.y - waypoints[5].y)))) < 0.5){
+                    RobotState = 41;
+                }
+            }
+            if (balldrop == 1){
+                if (sqrt((((ROBOTps.x - waypoints[6].x)*(ROBOTps.x - waypoints[6].x)) + ((ROBOTps.y - waypoints[6].y)*(ROBOTps.y - waypoints[6].y)))) < 0.5){
+                    RobotState = 42;
                 }
             }
 
@@ -1147,7 +1173,7 @@ __interrupt void SWI1_HighestPriority(void)     // EMIF_ERROR
             break;
 
         case 20:
-            // put vision code here
+            // Orange focus. orange main goal. orange center of purpose
             colcentroid = MaxColThreshold1 - 160;
             if ((MaxColThreshold1 == 0) || (MaxAreaThreshold1 < 3)){
                 vref = 0;
@@ -1164,10 +1190,11 @@ __interrupt void SWI1_HighestPriority(void)     // EMIF_ERROR
             break;
 
         case 22:
-            //CH wait 1 second
+            //Orange open
             turn = 0;
             vref = 0;
             timerTwoTwo++;
+            setEPWM3B_RCServo(-10.0);
             if (timerTwoTwo > 1000){
                 timerTwoTwo = 0;
                 setEPWM3A_RCServo(-45.0);
@@ -1175,7 +1202,7 @@ __interrupt void SWI1_HighestPriority(void)     // EMIF_ERROR
             }
             break;
         case 24:
-            //CH move forward slightly for one second
+            // orange pursue
             turn = 0;
             vref = 0.8;
             timerTwoTwo++;
@@ -1185,16 +1212,21 @@ __interrupt void SWI1_HighestPriority(void)     // EMIF_ERROR
             }
             break;
         case 26:
-            //CH wait for 1 second
+            //Orange
             turn = 0;
             vref = 0;
             setEPWM3A_RCServo(15);
             orangeCount++;
             timerTwoTwo++;
             if (timerTwoTwo > 1000){
+
+
+
+                currentx1 = ROBOTps.x;
+                currenty1 = ROBOTps.y;
                 timerTwoTwo = 0;
-                orangex[orangeCount] = ROBOTps.x;
-                orangey[orangeCount] = ROBOTps.y;
+                currentLVstate++;
+                currentcolor = 1;
                 RobotState = 1;
                 timerOne = 0;
             }
@@ -1202,7 +1234,7 @@ __interrupt void SWI1_HighestPriority(void)     // EMIF_ERROR
             break;
          case 30:
             // put vision code here
-             //CH case 30: follow orange ball
+             // Purple focus. purple main goal. purple center of purpose
             colcentroid = MaxColThreshold2 - 160;
             if ((MaxColThreshold2 == 0) || (MaxAreaThreshold2 < 3)){
                 vref = 0;
@@ -1217,19 +1249,20 @@ __interrupt void SWI1_HighestPriority(void)     // EMIF_ERROR
             }
             break;
         case 32:
-            //CH wait 1 sec: purple time
+            // Purple look tasty. mmmm purple. go eat purple
             turn = 0;
             vref = 0;
-
+            setEPWM3B_RCServo(40.0);
             timerTwoTwo++;
             if (timerTwoTwo > 1200){
                 timerTwoTwo = 0;
                 setEPWM3A_RCServo(-45.0);
+
                 RobotState = 34;
             }
             break;
         case 34:
-            //CH move forward 1 sec: purple time
+            //purple in sight
             turn = 0;
             vref = 0.8;
             timerTwoTwo++;
@@ -1239,7 +1272,7 @@ __interrupt void SWI1_HighestPriority(void)     // EMIF_ERROR
             }
             break;
         case 36:
-            //CH wait 1 sec: purple time
+            // where purple go </3 :( will not be forgotten. I'll remember your location
             turn = 0;
             vref = 0;
             setEPWM3A_RCServo(15.0);
@@ -1247,12 +1280,132 @@ __interrupt void SWI1_HighestPriority(void)     // EMIF_ERROR
             purpleCount++;
             if (timerTwoTwo > 1000){
                 timerTwoTwo = 0;
-                purplex[purpleCount] = ROBOTps.x;
-                purpley[purpleCount] = ROBOTps.y;
-                RobotState = 1;
+                currentcolor = 2;
+                currentLVstate++;
+                currentx1 = ROBOTps.x;
+                currenty1 = ROBOTps.y;
+                StartAstar = 1;
                 timerOne = 0;
+                RobotState = 1;
+
             }
-            StartAstar = 1;
+
+            break;
+        case 41:
+            //drop off orange balls
+
+            turn = 0;
+            vref = 0;
+            setEPWM3B_RCServo(40.0); //tongue to orange (actually purple, had to flip them around so it dropped off at the right circle)
+            timerTwoTwo++;
+            if (timerTwoTwo > 1200){
+                timerTwoTwo = 0;
+                setEPWM3A_RCServo(-45.0);
+                RobotState = 43;
+            }
+
+//            vref = 0;
+//            turn = 0;
+//            setEPWM3B_RCServo(-10.0);
+//            timerFourOne++;
+//            if (timerFourOne > 1000){
+//                timer
+//                setEPWM3A_RCServo(-45.0);
+//                timerReverse++;
+//                if(timerReverse < 800){
+//                    vref = -1.2;
+//                    turn = 0;
+//                }else if (timerReverse<1300){
+//                   setEPWM3A_RCServo(15.0);
+//                    vref = 0;
+//                    turn = 0;
+//                }else{
+//                    vref = 0;
+//                    turn = 0;
+//                    wayindex = 6;
+//                    RobotState = 1;
+//                    StartAstar = 1;
+//                }
+//
+//            }
+            break;
+        case 42:
+            //drop off purple balls
+
+            turn = 0;
+            vref = 0;
+            setEPWM3B_RCServo(-10.0); //tongue to purple (actually orange)
+            timerTwoTwo++;
+            if (timerTwoTwo > 1200){
+                timerTwoTwo = 0;
+                setEPWM3A_RCServo(-45.0);
+                RobotState = 44;
+            }
+//            vref = 0;
+//            turn = 0;
+//            setEPWM3B_RCServo(40.0);
+//            timerFourOne++;
+//            if (timerFourOne > 1000){
+//                setEPWM3A_RCServo(-45.0);
+//                timerReverse++;
+//                if(timerReverse < 800){
+//                    vref = -1.2;
+//                    turn = 0;
+//                }else{
+//                    vref = 0;
+//                    turn = 0;
+//                    setEPWM3A_RCServo(15.0);
+//                }
+//
+//                //RobotState = 1;
+//            }
+            break;
+        case 43:
+            //back up to drop off orange balls
+            turn = 0;
+            vref = -1.2;
+            timerTwoTwo++;
+            if (timerTwoTwo > 800){
+                timerTwoTwo = 0;
+                RobotState = 45;
+            }
+            break;
+        case 44:
+            //back up to drop off purple balls
+            turn = 0;
+            vref = -1.2;
+            timerTwoTwo++;
+            if (timerTwoTwo > 800){
+                timerTwoTwo = 0;
+                RobotState = 46;
+            }
+            break;
+        case 45:
+            //close front gate after dropping off orange balls, go back to state 1
+            turn = 0;
+            vref = 0;
+            setEPWM3A_RCServo(15.0);
+            timerTwoTwo++;
+            purpleCount++;
+            if (timerTwoTwo > 1000){
+                timerTwoTwo = 0;
+                vref = 0;
+                turn = 0;
+                wayindex = 6;
+                RobotState = 1;
+                StartAstar = 1;
+            }
+            break;
+        case 46:
+            //close front gate and stay here after purple has been dropped off
+            turn = 0;
+            vref = 0;
+            setEPWM3A_RCServo(15.0);
+            timerTwoTwo++;
+            purpleCount++;
+            if (timerTwoTwo > 1000){
+                timerTwoTwo = 0;
+            }
             break;
 
         default:
@@ -1278,12 +1431,12 @@ __interrupt void SWI1_HighestPriority(void)     // EMIF_ERROR
 
             DataToLabView.floatData[0] = ROBOTps.x;
             DataToLabView.floatData[1] = ROBOTps.y;
-            DataToLabView.floatData[2] = ROBOTps.theta;
-            DataToLabView.floatData[3] = (float)timecount;
-            DataToLabView.floatData[4] = 0.5*(LeftVel + RightVel);
-            DataToLabView.floatData[5] = (float)RobotState;
-            DataToLabView.floatData[6] = (float)statePos;
-            DataToLabView.floatData[7] = LADARfront;
+            DataToLabView.floatData[2] = currentLVstate;
+            DataToLabView.floatData[3] = currentcolor;
+            DataToLabView.floatData[4] = currentx1;
+            DataToLabView.floatData[5] = currenty1;
+            DataToLabView.floatData[6] = currentx2;
+            DataToLabView.floatData[7] = currenty2;
             LVsenddata[0] = '*';  // header for LVdata
             LVsenddata[1] = '$';
             for (i=0;i<LVNUM_TOFROM_FLOATS*4;i++) {
