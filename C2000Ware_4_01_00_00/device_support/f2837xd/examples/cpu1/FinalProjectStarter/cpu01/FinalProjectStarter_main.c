@@ -311,10 +311,8 @@ void main(void)
 
     DELAY_US(1000000);  // Delay 1 second giving Lidar Time to power on after system power on
 
-    init_serialSCIA(&SerialA,115200);
     init_serialSCIB(&SerialB,19200);
     init_serialSCIC(&SerialC,19200);
-    init_serialSCID(&SerialD,2083332);
 
     for (LADARi = 0; LADARi < 228; LADARi++) {
         ladar_data[LADARi].angle = ((3*LADARi+44)*0.3515625-135)*0.01745329; //0.017453292519943 is pi/180, multiplication is faster; 0.3515625 is 360/1024
@@ -388,6 +386,9 @@ void main(void)
     SpibRegs.SPIFFRX.bit.RXFFINTCLR=1; // Clear Interrupt flag
     PieCtrlRegs.PIEACK.all = PIEACK_GROUP6;
     EPwm4Regs.TBCTL.bit.CTRMODE = 0; //unfreeze, and enter up count mode
+	
+    init_serialSCIA(&SerialA,115200);
+    init_serialSCID(&SerialD,2083332);
 
     // Enable global Interrupts and higher priority real-time debug events
     EINT;  // Enable Global interrupt INTM

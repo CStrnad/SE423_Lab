@@ -3,9 +3,9 @@ import image, sensor, ustruct, pyb, lcd, time
 
 sensor.reset()
 sensor.set_pixformat(sensor.RGB565)
-sensor.set_framesize(sensor.QVGA) # use QVGA 320*240
-sensor.set_auto_gain(False) # must be turned off for color tracking
-sensor.set_auto_whitebal(False) # must be turned off for color tracking
+sensor.set_framesize(sensor.QVGA) # use QVGA 320columns*240rows
+sensor.set_auto_gain(False,gain_db=11.4801) # must be turned off for color tracking
+sensor.set_auto_whitebal(False,[60.2071, 60.5557, 67.1094]) # must be turned off for color tracking
 lcd.init(triple_buffer=True) # Initialize the lcd screen.  Make Non-blocking but 3X RAM
 
 uart = pyb.UART(3)
@@ -37,7 +37,7 @@ while True:
             if offcount == 20:
                 toggle = 0
                 offcount = 0
-
+    framecount = framecount + 1
     img = sensor.snapshot()
 
     blobs1 = img.find_blobs([threshold1], roi=(0,80,320,160), pixels_threshold=5, area_threshold=20)
@@ -108,6 +108,6 @@ while True:
         uart.write(b)
         b = ustruct.pack(blob_packet, 0.0, 0.0, 0.0)
         uart.write(b)
-
+    #roi is left, top, width, height
     lcd.display(img, roi=(96,80,128,160)) # display the image to lcd only middle 128 cols by 160 rows.
     print(clock.fps())              # Note: OpenMV Cam runs about half as fast when connected
