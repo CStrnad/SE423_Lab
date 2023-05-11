@@ -97,65 +97,66 @@ typedef struct obsttype{
     int16_t found; // 0 or 1 depending on if edge has been added to map
     int16_t sentToLV; // 0 or 1 depending on if edge was sent to LabView
     int16_t tally; // number of times LADAR has detected current edge
+    int16_t orientation; //0 for horizontal, 1 for vertical
 } obsttype;
 
 obsttype obst[57] =
 {                                   //h - horizontal edge, v - vertical edge
- {-5, 10, 400, 11, 12, 0, 0, 0},    //h
- {-3, 10, 12, 13, 14, 0, 0, 0},     //h
- {-1, 10, 14, 15, 16, 0, 0, 0},     //h
- {1, 10, 16, 17, 18, 0, 0, 0},      //h
- {3, 10, 18, 19, 20, 0, 0, 0},      //h
- {5, 10, 20, 21, 400, 0, 0, 0},     //h
- {-4, 9, 12, 23, 34, 0, 0, 0},      //v
- {-2, 9, 14, 25, 36, 0, 0, 0},      //v
- {0, 9, 16, 27, 38, 0, 0, 0},       //v
- {2, 9, 18, 29, 40, 0, 0, 0},       //v
- {4, 9, 20, 31, 42, 0, 0, 0},       //v
- {-5, 8, 400, 33, 34, 0, 0, 0},     //h
- {-3, 8, 34, 35, 36, 0, 0, 0},      //h
- {-1, 8, 36, 37, 38, 0, 0, 0},      //h
- {1, 8, 38, 39, 40, 0, 0, 0},       //h
- {3, 8, 40, 41, 42, 0, 0, 0},       //h
- {5, 8, 42, 43, 400, 0, 0, 0},      //h
- {-4, 7, 34, 45, 56, 0, 0, 0},      //v
- {-2, 7, 36, 47, 58, 0, 0, 0},      //v
- {0, 7, 38, 49, 59, 0, 0, 0},       //v
- {2, 7, 40, 51, 62, 0, 0, 0},       //v
- {4, 7, 42, 53, 64, 0, 0, 0},       //v
- {-5, 6, 400, 55, 56, 0, 0, 0},     //h
- {-3, 6, 56, 57, 58, 0, 0, 0},      //h
- {-1, 6, 58, 59, 60, 0, 0, 0},      //h
- {1, 6, 60, 61, 62, 0, 0, 0},       //h
- {3, 6, 62, 63, 64, 0, 0, 0},       //h
- {5, 6, 64, 65, 400, 0, 0, 0},      //h
- {-4, 5, 56, 67, 78, 0, 0, 0},      //v
- {-2, 5, 58, 69, 80, 0, 0, 0},      //v
- {0, 5, 60, 71, 82, 0, 0, 0},       //v
- {2, 5, 62, 73, 84, 0, 0, 0},       //v
- {4, 5, 64, 75, 86, 0, 0, 0},       //v
- {-5, 4, 400, 77, 78, 0, 0, 0},     //h
- {-3, 4, 78, 79, 80, 0, 0, 0},      //h
- {-1, 4, 80, 81, 82, 0, 0, 0},      //h
- {1, 4, 82, 83, 84, 0, 0, 0},       //h
- {3, 4, 84, 85, 86, 0, 0, 0},       //h
- {5, 4, 86, 87, 400, 0, 0, 0},      //h
- {-4, 3, 78, 89, 100, 0, 0, 0},     //v
- {-2, 3, 80, 91, 102, 0, 0, 0},     //v
- {0, 3, 82, 93, 104, 0, 0, 0},      //v
- {2, 3, 84, 95, 106, 0, 0, 0},      //v
- {4, 3, 86, 97, 108, 0, 0, 0},      //v
- {-5, 2, 400, 99, 100, 0, 0, 0},    //h
- {-3, 2, 100, 101, 102, 0, 0, 0},   //h
- {-1, 2, 102, 103, 104, 0, 0, 0},   //h
- {1, 2, 104, 105, 106, 0, 0, 0},    //h
- {3, 2, 106, 107, 108, 0, 0, 0},    //h
- {5, 2, 108, 109, 400, 0, 0, 0},    //h
- {-4, 1, 100, 111, 400, 0, 0, 0},   //v
- {-2, 1, 102, 113, 400, 0, 0, 0},   //v
- {0, 1, 104, 115, 400, 0, 0, 0},    //v
- {2, 1, 106, 117, 400, 0, 0, 0},    //v
- {4, 1, 108, 119, 400, 0, 0, 0}     //v
+ {-5, 10, 400, 11, 12, 0, 0, 0, 0},    //h
+ {-3, 10, 12, 13, 14, 0, 0, 0, 0},     //h
+ {-1, 10, 14, 15, 16, 0, 0, 0, 0},     //h
+ {1, 10, 16, 17, 18, 0, 0, 0, 0},      //h
+ {3, 10, 18, 19, 20, 0, 0, 0, 0},      //h
+ {5, 10, 20, 21, 400, 0, 0, 0, 0},     //h
+ {-4, 9, 12, 23, 34, 0, 0, 0, 1},      //v
+ {-2, 9, 14, 25, 36, 0, 0, 0, 1},      //v
+ {0, 9, 16, 27, 38, 0, 0, 0, 1},       //v
+ {2, 9, 18, 29, 40, 0, 0, 0, 1},       //v
+ {4, 9, 20, 31, 42, 0, 0, 0, 1},       //v
+ {-5, 8, 400, 33, 34, 0, 0, 0, 0},     //h
+ {-3, 8, 34, 35, 36, 0, 0, 0, 0},      //h
+ {-1, 8, 36, 37, 38, 0, 0, 0, 0},      //h
+ {1, 8, 38, 39, 40, 0, 0, 0, 0},       //h
+ {3, 8, 40, 41, 42, 0, 0, 0, 0},       //h
+ {5, 8, 42, 43, 400, 0, 0, 0, 0},      //h
+ {-4, 7, 34, 45, 56, 0, 0, 0, 1},      //v
+ {-2, 7, 36, 47, 58, 0, 0, 0, 1},      //v
+ {0, 7, 38, 49, 59, 0, 0, 0, 1},       //v
+ {2, 7, 40, 51, 62, 0, 0, 0, 1},       //v
+ {4, 7, 42, 53, 64, 0, 0, 0, 1},       //v
+ {-5, 6, 400, 55, 56, 0, 0, 0, 0},     //h
+ {-3, 6, 56, 57, 58, 0, 0, 0, 0},      //h
+ {-1, 6, 58, 59, 60, 0, 0, 0, 0},      //h
+ {1, 6, 60, 61, 62, 0, 0, 0, 0},       //h
+ {3, 6, 62, 63, 64, 0, 0, 0, 0},       //h
+ {5, 6, 64, 65, 400, 0, 0, 0, 0},      //h
+ {-4, 5, 56, 67, 78, 0, 0, 0, 1},      //v
+ {-2, 5, 58, 69, 80, 0, 0, 0, 1},      //v
+ {0, 5, 60, 71, 82, 0, 0, 0, 1},       //v
+ {2, 5, 62, 73, 84, 0, 0, 0, 1},       //v
+ {4, 5, 64, 75, 86, 0, 0, 0, 1},       //v
+ {-5, 4, 400, 77, 78, 0, 0, 0, 0},     //h
+ {-3, 4, 78, 79, 80, 0, 0, 0, 0},      //h
+ {-1, 4, 80, 81, 82, 0, 0, 0, 0},      //h
+ {1, 4, 82, 83, 84, 0, 0, 0, 0},       //h
+ {3, 4, 84, 85, 86, 0, 0, 0, 0},       //h
+ {5, 4, 86, 87, 400, 0, 0, 0, 0},      //h
+ {-4, 3, 78, 89, 100, 0, 0, 0, 1},     //v
+ {-2, 3, 80, 91, 102, 0, 0, 0, 1},     //v
+ {0, 3, 82, 93, 104, 0, 0, 0, 1},      //v
+ {2, 3, 84, 95, 106, 0, 0, 0, 1},      //v
+ {4, 3, 86, 97, 108, 0, 0, 0, 1},      //v
+ {-5, 2, 400, 99, 100, 0, 0, 0, 0},    //h
+ {-3, 2, 100, 101, 102, 0, 0, 0, 0},   //h
+ {-1, 2, 102, 103, 104, 0, 0, 0, 0},   //h
+ {1, 2, 104, 105, 106, 0, 0, 0, 0},    //h
+ {3, 2, 106, 107, 108, 0, 0, 0, 0},    //h
+ {5, 2, 108, 109, 400, 0, 0, 0, 0},    //h
+ {-4, 1, 100, 111, 400, 0, 0, 0, 1},   //v
+ {-2, 1, 102, 113, 400, 0, 0, 0, 1},   //v
+ {0, 1, 104, 115, 400, 0, 0, 0, 1},    //v
+ {2, 1, 106, 117, 400, 0, 0, 0, 1},    //v
+ {4, 1, 108, 119, 400, 0, 0, 0, 1}     //v
 };
 
 //union of char and pose_obstacle for reading data
@@ -164,6 +165,8 @@ typedef union {
     pose_obstacle cur_obs;
 } int_pose_union;
 
+float edgeCenterX = 0;
+float edgeCenterY = 0;
 
 extern char path_received[81];
 extern int16_t newAstarPath;
@@ -368,6 +371,7 @@ float currenty1 = 0;
 float currentx2 = 0;
 float currenty2 = 0;
 int16_t currentLVstate = 0;
+int16_t ballcount = 0;
 int16_t currentcolor = 0;
 
 float adcC2Volt = 0.0;
@@ -1099,7 +1103,7 @@ __interrupt void SWI1_HighestPriority(void)     // EMIF_ERROR
                 }
             }
         }
-        vref = vref*1.5;
+        vref = vref*2.5;
         // state machine
         //RobotState = 1;
         switch (RobotState) {
@@ -1185,6 +1189,7 @@ __interrupt void SWI1_HighestPriority(void)     // EMIF_ERROR
             if (MaxRowThreshold1 < 1.4){
                 RobotState = 22;
                 timerTwoTwo = 0;
+
             }
 
             break;
@@ -1195,7 +1200,7 @@ __interrupt void SWI1_HighestPriority(void)     // EMIF_ERROR
             vref = 0;
             timerTwoTwo++;
             setEPWM3B_RCServo(-10.0);
-            if (timerTwoTwo > 1000){
+            if (timerTwoTwo > 900){ //was 1000
                 timerTwoTwo = 0;
                 setEPWM3A_RCServo(-45.0);
                 RobotState = 24;
@@ -1206,7 +1211,7 @@ __interrupt void SWI1_HighestPriority(void)     // EMIF_ERROR
             turn = 0;
             vref = 0.8;
             timerTwoTwo++;
-            if (timerTwoTwo > 1000){
+            if (timerTwoTwo > 900){ //was 1000
                 timerTwoTwo = 0;
                 RobotState = 26;
             }
@@ -1216,16 +1221,17 @@ __interrupt void SWI1_HighestPriority(void)     // EMIF_ERROR
             turn = 0;
             vref = 0;
             setEPWM3A_RCServo(15);
-            orangeCount++;
+//            orangeCount++;
             timerTwoTwo++;
-            if (timerTwoTwo > 1000){
+            if (timerTwoTwo > 500){ //was 1000
 
 
 
                 currentx1 = ROBOTps.x;
                 currenty1 = ROBOTps.y;
                 timerTwoTwo = 0;
-                currentLVstate++;
+                ballcount++;
+                currentLVstate = ballcount;
                 currentcolor = 1;
                 RobotState = 1;
                 timerOne = 0;
@@ -1254,7 +1260,7 @@ __interrupt void SWI1_HighestPriority(void)     // EMIF_ERROR
             vref = 0;
             setEPWM3B_RCServo(40.0);
             timerTwoTwo++;
-            if (timerTwoTwo > 1200){
+            if (timerTwoTwo > 900){ // was 1200
                 timerTwoTwo = 0;
                 setEPWM3A_RCServo(-45.0);
 
@@ -1266,7 +1272,7 @@ __interrupt void SWI1_HighestPriority(void)     // EMIF_ERROR
             turn = 0;
             vref = 0.8;
             timerTwoTwo++;
-            if (timerTwoTwo > 1200){
+            if (timerTwoTwo > 900){ // was 1200
                 timerTwoTwo = 0;
                 RobotState = 36;
             }
@@ -1278,10 +1284,11 @@ __interrupt void SWI1_HighestPriority(void)     // EMIF_ERROR
             setEPWM3A_RCServo(15.0);
             timerTwoTwo++;
             purpleCount++;
-            if (timerTwoTwo > 1000){
+            if (timerTwoTwo > 500){ // was 1000
                 timerTwoTwo = 0;
                 currentcolor = 2;
-                currentLVstate++;
+                ballcount++;
+                currentLVstate = ballcount;
                 currentx1 = ROBOTps.x;
                 currenty1 = ROBOTps.y;
                 StartAstar = 1;
@@ -1427,7 +1434,20 @@ __interrupt void SWI1_HighestPriority(void)     // EMIF_ERROR
         RightWheel_1 = RightWheel;
 
         if((timecount%250) == 0) {
+            //Send obstacle edges to labview
+            for (int16_t i = 0; i < 57; i++){
+                if ((obst[i].found == 1) && (obst[i].sentToLV == 0)){
+                    currentx1 = obst[i].x;
+                    currenty1 = obst[i].y;
+                    obst[i].sentToLV = 1;
+                    if (obst[i].orientation == 0){ //horizontal
+                        currentLVstate = 11;
+                    } else if (obst[i].orientation == 1){ //vertical
+                        currentLVstate = 12;
+                    }
 
+                }
+            }
 
             DataToLabView.floatData[0] = ROBOTps.x;
             DataToLabView.floatData[1] = ROBOTps.y;
